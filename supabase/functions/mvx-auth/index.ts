@@ -1,13 +1,40 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { NativeAuthServer } from "https://esm.sh/@multiversx/sdk-native-auth-server@1.0.18";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("MVX_ALLOWED_ORIGINS") || "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Max-Age": "86400",
-};
+// Origins allowed to call this function. Defaults cover local dev and the
+// production Netlify site; extend via the MVX_ALLOWED_ORIGINS secret
+// (comma-separated) without needing a code change.
+const DEFAULT_ORIGINS = [
+  "http://localhost:5173",
+  "https://hodl-artwork-generator.netlify.app",
+];
+
+function acceptedOrigins(): string[] {
+  const raw = Deno.env.get("MVX_ALLOWED_ORIGINS");
+  const fromEnv = raw
+    ? raw.split(",").map((o) => o.trim()).filter(Boolean)
+    : [];
+  return [...new Set([...DEFAULT_ORIGINS, ...fromEnv])];
+}
+
+// Access-Control-Allow-Origin must be a SINGLE origin, never a list. We reflect
+// the caller's Origin only when it is allow-listed, falling back to the first
+// allowed origin otherwise.
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = acceptedOrigins();
+  const match = allowed.includes(origin)
+    ? origin
+    : allowed.find((o) => origin.startsWith(o));
+  return {
+    "Access-Control-Allow-Origin": match || allowed[0] || "*",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
+  };
+}
 
 const MVX_API_MAP: Record<string, string> = {
   mainnet: Deno.env.get("MVX_API_MAINNET") || "https://api.multiversx.com",
@@ -16,11 +43,6 @@ const MVX_API_MAP: Record<string, string> = {
   devnet:
     Deno.env.get("MVX_API_DEVNET") || "https://devnet-api.multiversx.com",
 };
-
-function acceptedOrigins(): string[] {
-  const raw = Deno.env.get("MVX_ALLOWED_ORIGINS") || "http://localhost:5173";
-  return raw.split(",").map((o) => o.trim()).filter(Boolean);
-}
 
 // Validate the Native Auth token using the official server library.
 // Returns the wallet address on success, or throws with a reason.
@@ -53,6 +75,8 @@ function walletEmail(walletAddress: string): string {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
