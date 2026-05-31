@@ -384,6 +384,11 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                           src={r.url}
                           alt={r.name}
                           loading="lazy"
+                          onError={(e) => {
+                            if (r.fullUrl && e.currentTarget.src !== r.fullUrl) {
+                              e.currentTarget.src = r.fullUrl;
+                            }
+                          }}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       ) : (

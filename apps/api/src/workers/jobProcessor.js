@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const archiver = require("archiver");
-const { renderSingle, renderBatch } = require("@basturds/engine");
+const { renderSingle, renderBatch, createThumbnail } = require("@basturds/engine");
 const { supabase } = require("../lib/supabase");
 const {
   loadProjectConfig,
@@ -56,8 +56,10 @@ async function processJob(jobId) {
       traitsByLayerId,
       job.projects.owner_id
     );
-    tmpDir = assets.tmpDir;
 
+    // The asset cache (assets.layersDir) persists across jobs; only this
+    // per-job build directory is ephemeral and cleaned up afterwards.
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "basturds-build-"));
     const outputDir = path.join(tmpDir, "build");
     const outputPrefix = `${job.projects.owner_id}/${job.project_id}/jobs/${jobId}`;
 
@@ -72,11 +74,23 @@ async function processJob(jobId) {
       },
       onEdition: async ({ edition, dna, metadata, buffer }) => {
         const imagePath = `${outputPrefix}/images/${edition}.png`;
+        const thumbPath = `${outputPrefix}/thumbs/${edition}.webp`;
         const metadataPath = `${outputPrefix}/json/${edition}.json`;
 
         await supabase.storage
           .from("generations")
           .upload(imagePath, buffer, { contentType: "image/png", upsert: true });
+
+        // Small WebP thumbnail for the gallery so the UI never downloads the
+        // full-resolution PNG just to show a preview tile.
+        try {
+          const thumb = await createThumbnail(buffer, 256);
+          await supabase.storage
+            .from("generations")
+            .upload(thumbPath, thumb, { contentType: "image/webp", upsert: true });
+        } catch (thumbErr) {
+          console.error(`Thumbnail failed for #${edition}:`, thumbErr.message);
+        }
 
         await supabase.storage
           .from("generations")
@@ -470,20 +484,33 @@ async function listJobEditions(jobId, userId, limit = 48, offset = 0) {
     .order("edition_number")
     .range(offset, offset + limit - 1);
 
-  const paths = (editions || []).map((e) => e.image_path);
+  const toThumbPath = (imagePath) =>
+    imagePath.replace("/images/", "/thumbs/").replace(/\.png$/i, ".webp");
+
+  const imagePaths = (editions || []).map((e) => e.image_path);
+  const thumbPaths = imagePaths.map(toThumbPath);
+
   const urlMap = {};
-  if (paths.length) {
-    const { data: signed } = await supabase.storage
-      .from("generations")
-      .createSignedUrls(paths, 3600);
-    (signed || []).forEach((s) => {
+  const thumbMap = {};
+  if (imagePaths.length) {
+    const [{ data: signedFull }, { data: signedThumbs }] = await Promise.all([
+      supabase.storage.from("generations").createSignedUrls(imagePaths, 3600),
+      supabase.storage.from("generations").createSignedUrls(thumbPaths, 3600),
+    ]);
+    (signedFull || []).forEach((s) => {
       if (s.path && s.signedUrl) urlMap[s.path] = s.signedUrl;
+    });
+    (signedThumbs || []).forEach((s) => {
+      if (s.path && s.signedUrl) thumbMap[s.path] = s.signedUrl;
     });
   }
 
+  // Serve the lightweight thumbnail in the gallery; expose the full-res URL as
+  // a fallback for older jobs generated before thumbnails existed.
   const result = (editions || []).map((e) => ({
     edition: e.edition_number,
-    url: urlMap[e.image_path] || null,
+    url: thumbMap[toThumbPath(e.image_path)] || urlMap[e.image_path] || null,
+    fullUrl: urlMap[e.image_path] || null,
     name: e.metadata?.name || `#${e.edition_number}`,
     attributes: e.metadata?.attributes || [],
   }));

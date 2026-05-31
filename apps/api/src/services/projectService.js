@@ -1,7 +1,36 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const crypto = require("crypto");
 const { supabase } = require("../lib/supabase");
+
+const ASSET_CACHE_ROOT = path.join(os.tmpdir(), "basturds-cache");
+
+// A short fingerprint of a project's trait set. Changes whenever traits are
+// added, removed or renamed (which changes the image files we must download).
+// Trait weight changes don't alter the files, so they don't bust the cache.
+function layersVersion(layers, traitsByLayerId) {
+  const parts = [];
+  for (const layer of layers) {
+    for (const t of traitsByLayerId[layer.id] || []) parts.push(t.storage_path);
+  }
+  parts.sort();
+  return crypto.createHash("sha1").update(parts.join("|")).digest("hex").slice(0, 16);
+}
+
+// Keep only the current version's folder for a project to bound disk usage.
+function pruneOldCacheVersions(projectDir, keepVersion) {
+  try {
+    if (!fs.existsSync(projectDir)) return;
+    for (const entry of fs.readdirSync(projectDir)) {
+      if (entry !== keepVersion) {
+        fs.rmSync(path.join(projectDir, entry), { recursive: true, force: true });
+      }
+    }
+  } catch {
+    // best-effort cleanup
+  }
+}
 
 async function loadProjectConfig(projectId, userId) {
   const { data: project, error } = await supabase
@@ -135,9 +164,26 @@ async function loadProjectConfig(projectId, userId) {
   return { project, layers, traitsByLayerId, config, totalEditions, allLayersOrder };
 }
 
+/**
+ * Make the project's trait images available on local disk, cached by a version
+ * fingerprint of the trait set. Repeated generate/regenerate runs for the same
+ * layers reuse the cached files instead of re-downloading everything from
+ * Storage — the biggest avoidable source of egress while iterating.
+ *
+ * The returned layersDir is a persistent cache directory and must NOT be
+ * deleted by the caller; only the per-job build directory should be cleaned up.
+ */
 async function downloadProjectAssets(project, layers, traitsByLayerId, userId) {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "basturds-"));
-  const layersDir = path.join(tmpDir, "layers");
+  const version = layersVersion(layers, traitsByLayerId);
+  const projectDir = path.join(ASSET_CACHE_ROOT, String(project.id));
+  const layersDir = path.join(projectDir, version);
+  const marker = path.join(layersDir, ".complete");
+  const cached = fs.existsSync(marker);
+
+  if (!cached && fs.existsSync(layersDir)) {
+    // Remove any partial download from a previous interrupted run.
+    fs.rmSync(layersDir, { recursive: true, force: true });
+  }
   fs.mkdirSync(layersDir, { recursive: true });
 
   const traitsByLayer = {};
@@ -152,17 +198,19 @@ async function downloadProjectAssets(project, layers, traitsByLayerId, userId) {
       const trait = layerTraits[i];
       const localPath = path.join(layerPath, trait.filename);
 
-      const { data, error } = await supabase.storage
-        .from("layer-assets")
-        .download(trait.storage_path);
+      if (!cached || !fs.existsSync(localPath)) {
+        const { data, error } = await supabase.storage
+          .from("layer-assets")
+          .download(trait.storage_path);
 
-      if (error) {
-        console.error(`Failed to download ${trait.storage_path}:`, error.message);
-        continue;
+        if (error) {
+          console.error(`Failed to download ${trait.storage_path}:`, error.message);
+          continue;
+        }
+
+        const buffer = Buffer.from(await data.arrayBuffer());
+        fs.writeFileSync(localPath, buffer);
       }
-
-      const buffer = Buffer.from(await data.arrayBuffer());
-      fs.writeFileSync(localPath, buffer);
 
       traitsByLayer[layer.name].push({
         id: i,
@@ -174,7 +222,12 @@ async function downloadProjectAssets(project, layers, traitsByLayerId, userId) {
     }
   }
 
-  return { tmpDir, layersDir, traitsByLayer };
+  if (!cached) {
+    fs.writeFileSync(marker, new Date().toISOString());
+  }
+  pruneOldCacheVersions(projectDir, version);
+
+  return { layersDir, traitsByLayer, cached };
 }
 
 /**

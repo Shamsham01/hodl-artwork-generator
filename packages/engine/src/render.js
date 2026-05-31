@@ -294,6 +294,23 @@ const renderBatch = async (config, options = {}) => {
   return { metadataList, editionCount: completed };
 };
 
+/**
+ * Produce a small WebP thumbnail from a full-size image buffer. Used to serve
+ * the results gallery cheaply instead of repeatedly downloading full-resolution
+ * renders from storage (the main source of egress).
+ */
+const createThumbnail = async (buffer, size = 256, quality = 72) => {
+  const img = await loadImage(buffer);
+  const ratio = Math.min(size / img.width, size / img.height, 1);
+  const w = Math.max(1, Math.round(img.width * ratio));
+  const h = Math.max(1, Math.round(img.height * ratio));
+  const canvas = createCanvas(w, h);
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.encode("webp", quality);
+};
+
 const buildSetup = (buildDir, gifExport = false) => {
   if (fs.existsSync(buildDir)) {
     fs.rmSync(buildDir, { recursive: true });
@@ -310,6 +327,7 @@ module.exports = {
   createRenderer,
   renderSingle,
   renderBatch,
+  createThumbnail,
   buildSetup,
   resolveLayers,
   resolveLayersForOrder,

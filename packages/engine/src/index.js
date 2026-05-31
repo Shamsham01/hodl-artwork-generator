@@ -8,7 +8,7 @@ const {
   DNA_DELIMITER,
 } = require("./dna");
 const { buildMetadata, buildAttributes, sha1 } = require("./metadata");
-const { renderSingle, renderBatch, buildSetup, resolveLayers } = require("./render");
+const { renderSingle, renderBatch, createThumbnail, buildSetup, resolveLayers } = require("./render");
 const { NETWORK } = require("./constants/network");
 const { MODE } = require("./constants/blend_mode");
 
@@ -29,6 +29,7 @@ module.exports = {
   sha1,
   renderSingle,
   renderBatch,
+  createThumbnail,
   buildSetup,
   resolveLayers,
   NETWORK,
