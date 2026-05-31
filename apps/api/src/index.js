@@ -17,6 +17,11 @@ const { parseTraitFilename } = require("@basturds/engine");
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Render (and most PaaS) sit behind a reverse proxy that sets X-Forwarded-For.
+// Trust the first hop so express-rate-limit can read the real client IP instead
+// of throwing ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on every request.
+app.set("trust proxy", 1);
+
 const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173").split(",");
 
 app.use(
@@ -299,6 +304,12 @@ app.post("/api/projects/:id/sync-traits", authMiddleware, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Defense in depth: a stray rejection from a single request handler must never
+// crash the process and kill an in-flight generation job.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
 });
 
 app.listen(PORT, () => {
