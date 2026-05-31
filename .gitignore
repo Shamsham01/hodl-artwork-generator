@@ -4,6 +4,9 @@
 layers/
 # Generated CLI output
 build/
+# Supabase CLI local scratch state
+supabase/.temp/
+supabase/.branches/
 # Secrets — never commit any real env file (templates use .env.example)
 .env
 .env.*
