@@ -1,0 +1,32 @@
+{
+  "name": "hashlips_art_engine",
+  "version": "1.1.1",
+  "private": true,
+  "description": "HashLips Art Engine - 3D Basturds NFT generator with web app",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "node index.js",
+    "generate": "node index.js",
+    "rarity": "node utils/rarity.js",
+    "preview": "node utils/preview.js",
+    "pixelate": "node utils/pixelate.js",
+    "update_info": "node utils/update_info.js",
+    "preview_gif": "node utils/preview_gif.js",
+    "generate_metadata": "node utils/generate_metadata.js",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "build:api": "npm run build --workspace=apps/api"
+  },
+  "author": "Daniel Eugene Botha (HashLips)",
+  "license": "MIT",
+  "dependencies": {
+    "@basturds/engine": "file:packages/engine",
+    "@napi-rs/canvas": "^0.1.96",
+    "gif-encoder-2": "^1.0.5",
+    "sha1": "^1.1.1"
+  }
+}

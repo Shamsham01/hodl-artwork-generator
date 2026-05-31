@@ -1,0 +1,11 @@
+{
+  "name": "@basturds/engine",
+  "version": "1.0.0",
+  "description": "HashLips art generation engine with trait restrictions",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.96",
+    "sha1": "^1.1.1"
+  }
+}

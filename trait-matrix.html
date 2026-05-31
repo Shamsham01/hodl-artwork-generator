@@ -1,0 +1,3040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trait Matrix - HashLips Art Engine</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #e94560;
+    }
+    .trait-section {
+      margin-bottom: 3rem;
+      padding: 1.5rem;
+      background: #16213e;
+      border-radius: 12px;
+      border: 1px solid #0f3460;
+    }
+    .trait-section h2 {
+      margin: 0 0 0.5rem 0;
+      color: #e94560;
+      font-size: 1.5rem;
+    }
+    .layer-summary {
+      margin: 0 0 1rem 0;
+      color: #8892b0;
+      font-size: 0.9rem;
+    }
+    .trait-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+    }
+    .trait-card {
+      background: #0f3460;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #1a1a2e;
+      transition: transform 0.2s;
+    }
+    .trait-card:hover {
+      transform: scale(1.02);
+      border-color: #e94560;
+    }
+    .trait-image {
+      aspect-ratio: 1;
+      overflow: hidden;
+      background: #1a1a2e;
+    }
+    .trait-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .trait-info {
+      padding: 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      font-size: 0.8rem;
+    }
+    .trait-name {
+      font-weight: 600;
+      color: #fff;
+      word-break: break-word;
+    }
+    .trait-weight {
+      color: #8892b0;
+    }
+    .trait-pct-label {
+      color: #e94560;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+    .trait-pct-input {
+      width: 100%;
+      padding: 0.25rem 0.35rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e94560;
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+    }
+    .trait-pct-input:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+    .trait-pct-input::-webkit-inner-spin-button { opacity: 0.7; }
+    .actions-bar {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 0.6rem 1.2rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-export {
+      background: #e94560;
+      color: #fff;
+    }
+    .btn-export:hover { background: #ff6b6b; }
+    .btn-reset {
+      background: #0f3460;
+      color: #eee;
+    }
+    .btn-reset:hover { background: #16213e; }
+    .footer {
+      text-align: center;
+      margin-top: 2rem;
+      color: #8892b0;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Trait Matrix — All Traits with Occurrence %</h1>
+  <div class="actions-bar">
+    <button class="btn btn-export" onclick="exportCustomPercentages()">Export Custom Percentages (CSV)</button>
+    <button class="btn btn-reset" onclick="resetToCalculated()">Reset All to Calculated Values</button>
+  </div>
+  
+  <section class="trait-section">
+    <h2>BACKGROUND</h2>
+    <p class="layer-summary">11 elements · Total weight: 11</p>
+    <div class="trait-grid">
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Blue01.png" alt="Blue01" title="Blue01" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Blue01</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Blue01.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Blue02.png" alt="Blue02" title="Blue02" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Blue02</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Blue02.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Cream.png" alt="Cream" title="Cream" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Cream</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Cream.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Green01.png" alt="Green01" title="Green01" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Green01</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Green01.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Green02.png" alt="Green02" title="Green02" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Green02</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Green02.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Grey.png" alt="Grey" title="Grey" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Grey</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Grey.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Orange.png" alt="Orange" title="Orange" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Orange</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Orange.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Pink01.png" alt="Pink01" title="Pink01" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Pink01</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Pink01.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Pink02.png" alt="Pink02" title="Pink02" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Pink02</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Pink02.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Red.png" alt="Red" title="Red" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Red</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Red.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BACKGROUND/Yellow.png" alt="Yellow" title="Yellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Yellow</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.09" data-layer="BACKGROUND" data-filename="Yellow.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+    </div>
+  </section>
+
+  <section class="trait-section">
+    <h2>SKIN</h2>
+    <p class="layer-summary">14 elements · Total weight: 14</p>
+    <div class="trait-grid">
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/Blue.png" alt="Blue" title="Blue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Blue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="Blue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/Brown.png" alt="Brown" title="Brown" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Brown</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="Brown.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/Green.png" alt="Green" title="Green" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Green</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="Green.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/GreenLight.png" alt="GreenLight" title="GreenLight" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">GreenLight</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="GreenLight.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/Grey.png" alt="Grey" title="Grey" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Grey</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="Grey.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/GreyNose.png" alt="GreyNose" title="GreyNose" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">GreyNose</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="GreyNose.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/Orange.png" alt="Orange" title="Orange" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Orange</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="Orange.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/OrangeNose.png" alt="OrangeNose" title="OrangeNose" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">OrangeNose</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="OrangeNose.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/Pink.png" alt="Pink" title="Pink" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Pink</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="Pink.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/PinkNose.png" alt="PinkNose" title="PinkNose" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PinkNose</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="PinkNose.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/Red.png" alt="Red" title="Red" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Red</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="Red.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/Stars.png" alt="Stars" title="Stars" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Stars</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="Stars.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/White.png" alt="White" title="White" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">White</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="White.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SKIN/Yellow.png" alt="Yellow" title="Yellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Yellow</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.14" data-layer="SKIN" data-filename="Yellow.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+    </div>
+  </section>
+
+  <section class="trait-section">
+    <h2>BEARD</h2>
+    <p class="layer-summary">7 elements · Total weight: 7</p>
+    <div class="trait-grid">
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BEARD/3Days.png" alt="3Days" title="3Days" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">3Days</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="14.29" data-layer="BEARD" data-filename="3Days.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BEARD/Empty.png" alt="Empty" title="Empty" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Empty</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="14.29" data-layer="BEARD" data-filename="Empty.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BEARD/FrenchMustache.png" alt="FrenchMustache" title="FrenchMustache" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">FrenchMustache</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="14.29" data-layer="BEARD" data-filename="FrenchMustache.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BEARD/LilBeard.png" alt="LilBeard" title="LilBeard" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">LilBeard</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="14.29" data-layer="BEARD" data-filename="LilBeard.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BEARD/Major.png" alt="Major" title="Major" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Major</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="14.29" data-layer="BEARD" data-filename="Major.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BEARD/MisterT.png" alt="MisterT" title="MisterT" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MisterT</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="14.29" data-layer="BEARD" data-filename="MisterT.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/BEARD/MustacheBlack.png" alt="MustacheBlack" title="MustacheBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MustacheBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="14.29" data-layer="BEARD" data-filename="MustacheBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+    </div>
+  </section>
+
+  <section class="trait-section">
+    <h2>EYES</h2>
+    <p class="layer-summary">28 elements · Total weight: 277</p>
+    <div class="trait-grid">
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Crying%2320.png" alt="Crying" title="Crying" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Crying</span>
+            <span class="trait-weight">Weight: 20</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.22" data-layer="EYES" data-filename="Crying#20.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/CyclopeGold%235.png" alt="CyclopeGold" title="CyclopeGold" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">CyclopeGold</span>
+            <span class="trait-weight">Weight: 5</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.81" data-layer="EYES" data-filename="CyclopeGold#5.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/CyclopeSteel%235.png" alt="CyclopeSteel" title="CyclopeSteel" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">CyclopeSteel</span>
+            <span class="trait-weight">Weight: 5</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.81" data-layer="EYES" data-filename="CyclopeSteel#5.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Diamonds%2315.png" alt="Diamonds" title="Diamonds" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Diamonds</span>
+            <span class="trait-weight">Weight: 15</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="5.42" data-layer="EYES" data-filename="Diamonds#15.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Dollars%2325.png" alt="Dollars" title="Dollars" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Dollars</span>
+            <span class="trait-weight">Weight: 25</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="9.03" data-layer="EYES" data-filename="Dollars#25.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/HeartBlack%234.png" alt="HeartBlack" title="HeartBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HeartBlack</span>
+            <span class="trait-weight">Weight: 4</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.44" data-layer="EYES" data-filename="HeartBlack#4.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/HeartGold%234.png" alt="HeartGold" title="HeartGold" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HeartGold</span>
+            <span class="trait-weight">Weight: 4</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.44" data-layer="EYES" data-filename="HeartGold#4.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/HeartRed%234.png" alt="HeartRed" title="HeartRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HeartRed</span>
+            <span class="trait-weight">Weight: 4</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.44" data-layer="EYES" data-filename="HeartRed#4.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Kiss%2320.png" alt="Kiss" title="Kiss" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Kiss</span>
+            <span class="trait-weight">Weight: 20</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.22" data-layer="EYES" data-filename="Kiss#20.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Matrix01%239.png" alt="Matrix01" title="Matrix01" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Matrix01</span>
+            <span class="trait-weight">Weight: 9</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="3.25" data-layer="EYES" data-filename="Matrix01#9.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Matrix02%239.png" alt="Matrix02" title="Matrix02" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Matrix02</span>
+            <span class="trait-weight">Weight: 9</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="3.25" data-layer="EYES" data-filename="Matrix02#9.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Pirate%2320.png" alt="Pirate" title="Pirate" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Pirate</span>
+            <span class="trait-weight">Weight: 20</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.22" data-layer="EYES" data-filename="Pirate#20.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/RayBan1970%236.png" alt="RayBan1970" title="RayBan1970" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RayBan1970</span>
+            <span class="trait-weight">Weight: 6</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="2.17" data-layer="EYES" data-filename="RayBan1970#6.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/RayBanBlack%238.png" alt="RayBanBlack" title="RayBanBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RayBanBlack</span>
+            <span class="trait-weight">Weight: 8</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="2.89" data-layer="EYES" data-filename="RayBanBlack#8.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/RayBanBlue%235.png" alt="RayBanBlue" title="RayBanBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RayBanBlue</span>
+            <span class="trait-weight">Weight: 5</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.81" data-layer="EYES" data-filename="RayBanBlue#5.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/RayBanGreen%235.png" alt="RayBanGreen" title="RayBanGreen" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RayBanGreen</span>
+            <span class="trait-weight">Weight: 5</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.81" data-layer="EYES" data-filename="RayBanGreen#5.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/RayBanMini%232.png" alt="RayBanMini" title="RayBanMini" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RayBanMini</span>
+            <span class="trait-weight">Weight: 2</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="0.72" data-layer="EYES" data-filename="RayBanMini#2.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/RayBanNear%238.png" alt="RayBanNear" title="RayBanNear" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RayBanNear</span>
+            <span class="trait-weight">Weight: 8</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="2.89" data-layer="EYES" data-filename="RayBanNear#8.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/RayBanRed%233.png" alt="RayBanRed" title="RayBanRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RayBanRed</span>
+            <span class="trait-weight">Weight: 3</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.08" data-layer="EYES" data-filename="RayBanRed#3.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/RayBanYellow%238.png" alt="RayBanYellow" title="RayBanYellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RayBanYellow</span>
+            <span class="trait-weight">Weight: 8</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="2.89" data-layer="EYES" data-filename="RayBanYellow#8.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Regular%2360.png" alt="Regular" title="Regular" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Regular</span>
+            <span class="trait-weight">Weight: 60</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="21.66" data-layer="EYES" data-filename="Regular#60.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/SkiBlue%233.png" alt="SkiBlue" title="SkiBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SkiBlue</span>
+            <span class="trait-weight">Weight: 3</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.08" data-layer="EYES" data-filename="SkiBlue#3.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/SkiGold%233.png" alt="SkiGold" title="SkiGold" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SkiGold</span>
+            <span class="trait-weight">Weight: 3</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.08" data-layer="EYES" data-filename="SkiGold#3.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/StarBlack%232.png" alt="StarBlack" title="StarBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">StarBlack</span>
+            <span class="trait-weight">Weight: 2</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="0.72" data-layer="EYES" data-filename="StarBlack#2.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/StarGold%232.png" alt="StarGold" title="StarGold" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">StarGold</span>
+            <span class="trait-weight">Weight: 2</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="0.72" data-layer="EYES" data-filename="StarGold#2.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/StarRed%232.png" alt="StarRed" title="StarRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">StarRed</span>
+            <span class="trait-weight">Weight: 2</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="0.72" data-layer="EYES" data-filename="StarRed#2.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Three%2310.png" alt="Three" title="Three" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Three</span>
+            <span class="trait-weight">Weight: 10</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="3.61" data-layer="EYES" data-filename="Three#10.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/EYES/Wire%2310.png" alt="Wire" title="Wire" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Wire</span>
+            <span class="trait-weight">Weight: 10</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="3.61" data-layer="EYES" data-filename="Wire#10.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+    </div>
+  </section>
+
+  <section class="trait-section">
+    <h2>HEAD</h2>
+    <p class="layer-summary">66 elements · Total weight: 66</p>
+    <div class="trait-grid">
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/ArmyHelmet.png" alt="ArmyHelmet" title="ArmyHelmet" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ArmyHelmet</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="ArmyHelmet.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/BackwardGreenCap.png" alt="BackwardGreenCap" title="BackwardGreenCap" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BackwardGreenCap</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="BackwardGreenCap.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/BackwardRedCap.png" alt="BackwardRedCap" title="BackwardRedCap" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BackwardRedCap</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="BackwardRedCap.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/BackwardWhiteCap.png" alt="BackwardWhiteCap" title="BackwardWhiteCap" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BackwardWhiteCap</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="BackwardWhiteCap.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/BandMVX.png" alt="BandMVX" title="BandMVX" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BandMVX</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="BandMVX.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/BandNGMI.png" alt="BandNGMI" title="BandNGMI" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BandNGMI</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="BandNGMI.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/BeretBlack.png" alt="BeretBlack" title="BeretBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BeretBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="BeretBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/BeretRed.png" alt="BeretRed" title="BeretRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BeretRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="BeretRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/BobBlack.png" alt="BobBlack" title="BobBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BobBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="BobBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/BobWhite.png" alt="BobWhite" title="BobWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BobWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="BobWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/CanCampbell.png" alt="CanCampbell" title="CanCampbell" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">CanCampbell</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="CanCampbell.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/CanHeizn.png" alt="CanHeizn" title="CanHeizn" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">CanHeizn</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="CanHeizn.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/CapEgldRed.png" alt="CapEgldRed" title="CapEgldRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">CapEgldRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="CapEgldRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/CapMNGABlue.png" alt="CapMNGABlue" title="CapMNGABlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">CapMNGABlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="CapMNGABlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/CapPHPurple.png" alt="CapPHPurple" title="CapPHPurple" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">CapPHPurple</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="CapPHPurple.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/CapXBlack.png" alt="CapXBlack" title="CapXBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">CapXBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="CapXBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/Chapka.png" alt="Chapka" title="Chapka" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Chapka</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="Chapka.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/Crown.png" alt="Crown" title="Crown" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Crown</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="Crown.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/FedoraBlack.png" alt="FedoraBlack" title="FedoraBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">FedoraBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="FedoraBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/FedoraWhite.png" alt="FedoraWhite" title="FedoraWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">FedoraWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="FedoraWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/FunnelGold.png" alt="FunnelGold" title="FunnelGold" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">FunnelGold</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="FunnelGold.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/FunnelSteel.png" alt="FunnelSteel" title="FunnelSteel" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">FunnelSteel</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="FunnelSteel.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairFrizzy.png" alt="HairFrizzy" title="HairFrizzy" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairFrizzy</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairFrizzy.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairKind.png" alt="HairKind" title="HairKind" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairKind</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairKind.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairLilPunkBlack.png" alt="HairLilPunkBlack" title="HairLilPunkBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairLilPunkBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairLilPunkBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairLilPunkBrown.png" alt="HairLilPunkBrown" title="HairLilPunkBrown" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairLilPunkBrown</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairLilPunkBrown.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairMiddlePart.png" alt="HairMiddlePart" title="HairMiddlePart" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairMiddlePart</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairMiddlePart.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairProf.png" alt="HairProf" title="HairProf" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairProf</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairProf.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairPunkBlack.png" alt="HairPunkBlack" title="HairPunkBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairPunkBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairPunkBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairPunkBlue.png" alt="HairPunkBlue" title="HairPunkBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairPunkBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairPunkBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairRaide.png" alt="HairRaide" title="HairRaide" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairRaide</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairRaide.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairRight.png" alt="HairRight" title="HairRight" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairRight</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairRight.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HairSmart.png" alt="HairSmart" title="HairSmart" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HairSmart</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HairSmart.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HaloGold.png" alt="HaloGold" title="HaloGold" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HaloGold</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HaloGold.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HaloSilver.png" alt="HaloSilver" title="HaloSilver" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HaloSilver</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HaloSilver.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HautDeFormeBlack.png" alt="HautDeFormeBlack" title="HautDeFormeBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HautDeFormeBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HautDeFormeBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/HornHelmet.png" alt="HornHelmet" title="HornHelmet" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HornHelmet</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="HornHelmet.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/Horns.png" alt="Horns" title="Horns" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Horns</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="Horns.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/IceCream.png" alt="IceCream" title="IceCream" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">IceCream</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="IceCream.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/Major.png" alt="Major" title="Major" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Major</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="Major.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/MangaBlackHair.png" alt="MangaBlackHair" title="MangaBlackHair" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MangaBlackHair</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="MangaBlackHair.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/MangaPinkHair.png" alt="MangaPinkHair" title="MangaPinkHair" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MangaPinkHair</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="MangaPinkHair.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/MelonBlack.png" alt="MelonBlack" title="MelonBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MelonBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="MelonBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/MelonRed.png" alt="MelonRed" title="MelonRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MelonRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="MelonRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/MelonWhite.png" alt="MelonWhite" title="MelonWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MelonWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="MelonWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/MuletBlack.png" alt="MuletBlack" title="MuletBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MuletBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="MuletBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/MuletBlond.png" alt="MuletBlond" title="MuletBlond" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MuletBlond</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="MuletBlond.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/NightHatBlue.png" alt="NightHatBlue" title="NightHatBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">NightHatBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="NightHatBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/NightHatGreen.png" alt="NightHatGreen" title="NightHatGreen" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">NightHatGreen</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="NightHatGreen.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/NightHatRed.png" alt="NightHatRed" title="NightHatRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">NightHatRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="NightHatRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/PartyBlue.png" alt="PartyBlue" title="PartyBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PartyBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="PartyBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/PartyGreen.png" alt="PartyGreen" title="PartyGreen" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PartyGreen</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="PartyGreen.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/PartyRed.png" alt="PartyRed" title="PartyRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PartyRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="PartyRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/PeakyBrown.png" alt="PeakyBrown" title="PeakyBrown" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PeakyBrown</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="PeakyBrown.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/PeakyRed.png" alt="PeakyRed" title="PeakyRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PeakyRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="PeakyRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/PernBlackHair.png" alt="PernBlackHair" title="PernBlackHair" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PernBlackHair</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="PernBlackHair.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/PernBlondHair.png" alt="PernBlondHair" title="PernBlondHair" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PernBlondHair</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="PernBlondHair.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/SicilianBlue.png" alt="SicilianBlue" title="SicilianBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SicilianBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="SicilianBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/SicilianBrown.png" alt="SicilianBrown" title="SicilianBrown" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SicilianBrown</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="SicilianBrown.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/SicilianGreen.png" alt="SicilianGreen" title="SicilianGreen" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SicilianGreen</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="SicilianGreen.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/Sumo.png" alt="Sumo" title="Sumo" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Sumo</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="Sumo.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/Tissu.png" alt="Tissu" title="Tissu" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Tissu</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="Tissu.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/WalkMan.png" alt="WalkMan" title="WalkMan" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">WalkMan</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="WalkMan.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/WoolenHatBlack.png" alt="WoolenHatBlack" title="WoolenHatBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">WoolenHatBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="WoolenHatBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/WoolenHatGreen.png" alt="WoolenHatGreen" title="WoolenHatGreen" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">WoolenHatGreen</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="WoolenHatGreen.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/HEAD/WoolenHatRed.png" alt="WoolenHatRed" title="WoolenHatRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">WoolenHatRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.52" data-layer="HEAD" data-filename="WoolenHatRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+    </div>
+  </section>
+
+  <section class="trait-section">
+    <h2>MOUTH</h2>
+    <p class="layer-summary">15 elements · Total weight: 450</p>
+    <div class="trait-grid">
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/Cigar%2340.png" alt="Cigar" title="Cigar" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Cigar</span>
+            <span class="trait-weight">Weight: 40</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="8.89" data-layer="MOUTH" data-filename="Cigar#40.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/Cigarette%2330.png" alt="Cigarette" title="Cigarette" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Cigarette</span>
+            <span class="trait-weight">Weight: 30</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="6.67" data-layer="MOUTH" data-filename="Cigarette#30.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/Empty%23100.png" alt="Empty" title="Empty" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Empty</span>
+            <span class="trait-weight">Weight: 100</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="22.22" data-layer="MOUTH" data-filename="Empty#100.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/Gag%2330.png" alt="Gag" title="Gag" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Gag</span>
+            <span class="trait-weight">Weight: 30</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="6.67" data-layer="MOUTH" data-filename="Gag#30.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/Joint%2350.png" alt="Joint" title="Joint" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Joint</span>
+            <span class="trait-weight">Weight: 50</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="11.11" data-layer="MOUTH" data-filename="Joint#50.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/Pipe01%2320.png" alt="Pipe01" title="Pipe01" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Pipe01</span>
+            <span class="trait-weight">Weight: 20</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="4.44" data-layer="MOUTH" data-filename="Pipe01#20.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/Pipe02%2325.png" alt="Pipe02" title="Pipe02" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Pipe02</span>
+            <span class="trait-weight">Weight: 25</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="5.56" data-layer="MOUTH" data-filename="Pipe02#25.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/RoseBlack%2310.png" alt="RoseBlack" title="RoseBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RoseBlack</span>
+            <span class="trait-weight">Weight: 10</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="2.22" data-layer="MOUTH" data-filename="RoseBlack#10.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/RoseRed%2310.png" alt="RoseRed" title="RoseRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RoseRed</span>
+            <span class="trait-weight">Weight: 10</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="2.22" data-layer="MOUTH" data-filename="RoseRed#10.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/RoseWhite%2310.png" alt="RoseWhite" title="RoseWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RoseWhite</span>
+            <span class="trait-weight">Weight: 10</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="2.22" data-layer="MOUTH" data-filename="RoseWhite#10.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/RoseYellow%2310.png" alt="RoseYellow" title="RoseYellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">RoseYellow</span>
+            <span class="trait-weight">Weight: 10</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="2.22" data-layer="MOUTH" data-filename="RoseYellow#10.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/SnakeGreen%2325.png" alt="SnakeGreen" title="SnakeGreen" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SnakeGreen</span>
+            <span class="trait-weight">Weight: 25</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="5.56" data-layer="MOUTH" data-filename="SnakeGreen#25.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/SnakeYellow%2310.png" alt="SnakeYellow" title="SnakeYellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SnakeYellow</span>
+            <span class="trait-weight">Weight: 10</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="2.22" data-layer="MOUTH" data-filename="SnakeYellow#10.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/TongueRed%2335.png" alt="TongueRed" title="TongueRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TongueRed</span>
+            <span class="trait-weight">Weight: 35</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="7.78" data-layer="MOUTH" data-filename="TongueRed#35.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/MOUTH/Totoche%2345.png" alt="Totoche" title="Totoche" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Totoche</span>
+            <span class="trait-weight">Weight: 45</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="10.00" data-layer="MOUTH" data-filename="Totoche#45.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+    </div>
+  </section>
+
+  <section class="trait-section">
+    <h2>SUITS</h2>
+    <p class="layer-summary">60 elements · Total weight: 60</p>
+    <div class="trait-grid">
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/Anorak_Grey.png" alt="Anorak_Grey" title="Anorak_Grey" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Anorak_Grey</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="Anorak_Grey.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/Anorak_Red.png" alt="Anorak_Red" title="Anorak_Red" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Anorak_Red</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="Anorak_Red.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/Anorak_White.png" alt="Anorak_White" title="Anorak_White" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Anorak_White</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="Anorak_White.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/Anorak_Yellow.png" alt="Anorak_Yellow" title="Anorak_Yellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Anorak_Yellow</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="Anorak_Yellow.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/BFC.png" alt="BFC" title="BFC" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">BFC</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="BFC.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/FurBlue.png" alt="FurBlue" title="FurBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">FurBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="FurBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/FurWhite.png" alt="FurWhite" title="FurWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">FurWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="FurWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/FurYellow.png" alt="FurYellow" title="FurYellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">FurYellow</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="FurYellow.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/HoodieCult.png" alt="HoodieCult" title="HoodieCult" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HoodieCult</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="HoodieCult.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/HoodieHere.png" alt="HoodieHere" title="HoodieHere" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HoodieHere</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="HoodieHere.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/HoodieMvx.png" alt="HoodieMvx" title="HoodieMvx" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HoodieMvx</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="HoodieMvx.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/HoodieOG.png" alt="HoodieOG" title="HoodieOG" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HoodieOG</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="HoodieOG.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/HoodieRug.png" alt="HoodieRug" title="HoodieRug" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HoodieRug</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="HoodieRug.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/HoodieSport.png" alt="HoodieSport" title="HoodieSport" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HoodieSport</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="HoodieSport.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/HoodieSTTZ.png" alt="HoodieSTTZ" title="HoodieSTTZ" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HoodieSTTZ</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="HoodieSTTZ.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/HoodieZip.png" alt="HoodieZip" title="HoodieZip" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">HoodieZip</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="HoodieZip.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/JacketBlack.png" alt="JacketBlack" title="JacketBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">JacketBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="JacketBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/JacketMoto.png" alt="JacketMoto" title="JacketMoto" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">JacketMoto</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="JacketMoto.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/JacketRed.png" alt="JacketRed" title="JacketRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">JacketRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="JacketRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/KimonoRed.png" alt="KimonoRed" title="KimonoRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">KimonoRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="KimonoRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/KimonoWhite.png" alt="KimonoWhite" title="KimonoWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">KimonoWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="KimonoWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/KimonoYellow.png" alt="KimonoYellow" title="KimonoYellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">KimonoYellow</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="KimonoYellow.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/Major.png" alt="Major" title="Major" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">Major</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="Major.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/MarcelBlack.png" alt="MarcelBlack" title="MarcelBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MarcelBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="MarcelBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/MarcelBlue.png" alt="MarcelBlue" title="MarcelBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MarcelBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="MarcelBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/MarcelRed.png" alt="MarcelRed" title="MarcelRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MarcelRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="MarcelRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/MarcelWhite.png" alt="MarcelWhite" title="MarcelWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MarcelWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="MarcelWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/MarcelYellow.png" alt="MarcelYellow" title="MarcelYellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">MarcelYellow</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="MarcelYellow.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/PostApoJacket.png" alt="PostApoJacket" title="PostApoJacket" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PostApoJacket</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="PostApoJacket.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/PullBear.png" alt="PullBear" title="PullBear" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PullBear</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="PullBear.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/PullBlack.png" alt="PullBlack" title="PullBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PullBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="PullBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/PullBlue.png" alt="PullBlue" title="PullBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PullBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="PullBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/PullRed.png" alt="PullRed" title="PullRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PullRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="PullRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/PullWhite.png" alt="PullWhite" title="PullWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PullWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="PullWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/PullYellow.png" alt="PullYellow" title="PullYellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PullYellow</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="PullYellow.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/PyjamaBlue.png" alt="PyjamaBlue" title="PyjamaBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PyjamaBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="PyjamaBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/PyjamaRed.png" alt="PyjamaRed" title="PyjamaRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">PyjamaRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="PyjamaRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/SalopetteBlue.png" alt="SalopetteBlue" title="SalopetteBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SalopetteBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="SalopetteBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/SalopetteRed.png" alt="SalopetteRed" title="SalopetteRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SalopetteRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="SalopetteRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/SalopetteWhite.png" alt="SalopetteWhite" title="SalopetteWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">SalopetteWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="SalopetteWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ShirtBlack.png" alt="ShirtBlack" title="ShirtBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ShirtBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ShirtBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ShirtBlue.png" alt="ShirtBlue" title="ShirtBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ShirtBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ShirtBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ShirtPink.png" alt="ShirtPink" title="ShirtPink" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ShirtPink</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ShirtPink.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ShirtRed.png" alt="ShirtRed" title="ShirtRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ShirtRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ShirtRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TankBlack.png" alt="TankBlack" title="TankBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TankBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TankBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TankRed.png" alt="TankRed" title="TankRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TankRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TankRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TankWhite.png" alt="TankWhite" title="TankWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TankWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TankWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TieShirtBlue.png" alt="TieShirtBlue" title="TieShirtBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TieShirtBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TieShirtBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TieShirtGreen.png" alt="TieShirtGreen" title="TieShirtGreen" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TieShirtGreen</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TieShirtGreen.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TieShirtWhite.png" alt="TieShirtWhite" title="TieShirtWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TieShirtWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TieShirtWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TShirtBlack.png" alt="TShirtBlack" title="TShirtBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TShirtBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TShirtBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TShirtBlue.png" alt="TShirtBlue" title="TShirtBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TShirtBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TShirtBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TShirtRed.png" alt="TShirtRed" title="TShirtRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TShirtRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TShirtRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/TShirtWhite.png" alt="TShirtWhite" title="TShirtWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">TShirtWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="TShirtWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ZeroTsBlack.png" alt="ZeroTsBlack" title="ZeroTsBlack" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ZeroTsBlack</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ZeroTsBlack.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ZeroTsBlue.png" alt="ZeroTsBlue" title="ZeroTsBlue" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ZeroTsBlue</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ZeroTsBlue.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ZeroTsGreen.png" alt="ZeroTsGreen" title="ZeroTsGreen" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ZeroTsGreen</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ZeroTsGreen.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ZeroTsRed.png" alt="ZeroTsRed" title="ZeroTsRed" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ZeroTsRed</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ZeroTsRed.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ZeroTsWhite.png" alt="ZeroTsWhite" title="ZeroTsWhite" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ZeroTsWhite</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ZeroTsWhite.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+        <div class="trait-card">
+          <div class="trait-image">
+            <img src="layers/SUITS/ZeroTsYellow.png" alt="ZeroTsYellow" title="ZeroTsYellow" />
+          </div>
+          <div class="trait-info">
+            <span class="trait-name">ZeroTsYellow</span>
+            <span class="trait-weight">Weight: 1</span>
+            <label class="trait-pct-label">Occurrence %:</label>
+            <input type="number" step="0.01" min="0" max="100" class="trait-pct-input"
+              value="1.67" data-layer="SUITS" data-filename="ZeroTsYellow.png"
+              title="Edit occurrence percentage" />
+          </div>
+        </div>
+      
+    </div>
+  </section>
+
+  <p class="footer">Generated from layers/ · 201 total elements across 7 trait types</p>
+  <script>
+    const defaultValues = [{"layer":"BACKGROUND","filename":"Blue01.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Blue02.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Cream.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Green01.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Green02.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Grey.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Orange.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Pink01.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Pink02.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Red.png","value":"9.09"},{"layer":"BACKGROUND","filename":"Yellow.png","value":"9.09"},{"layer":"SKIN","filename":"Blue.png","value":"7.14"},{"layer":"SKIN","filename":"Brown.png","value":"7.14"},{"layer":"SKIN","filename":"Green.png","value":"7.14"},{"layer":"SKIN","filename":"GreenLight.png","value":"7.14"},{"layer":"SKIN","filename":"Grey.png","value":"7.14"},{"layer":"SKIN","filename":"GreyNose.png","value":"7.14"},{"layer":"SKIN","filename":"Orange.png","value":"7.14"},{"layer":"SKIN","filename":"OrangeNose.png","value":"7.14"},{"layer":"SKIN","filename":"Pink.png","value":"7.14"},{"layer":"SKIN","filename":"PinkNose.png","value":"7.14"},{"layer":"SKIN","filename":"Red.png","value":"7.14"},{"layer":"SKIN","filename":"Stars.png","value":"7.14"},{"layer":"SKIN","filename":"White.png","value":"7.14"},{"layer":"SKIN","filename":"Yellow.png","value":"7.14"},{"layer":"BEARD","filename":"3Days.png","value":"14.29"},{"layer":"BEARD","filename":"Empty.png","value":"14.29"},{"layer":"BEARD","filename":"FrenchMustache.png","value":"14.29"},{"layer":"BEARD","filename":"LilBeard.png","value":"14.29"},{"layer":"BEARD","filename":"Major.png","value":"14.29"},{"layer":"BEARD","filename":"MisterT.png","value":"14.29"},{"layer":"BEARD","filename":"MustacheBlack.png","value":"14.29"},{"layer":"EYES","filename":"Crying#20.png","value":"7.22"},{"layer":"EYES","filename":"CyclopeGold#5.png","value":"1.81"},{"layer":"EYES","filename":"CyclopeSteel#5.png","value":"1.81"},{"layer":"EYES","filename":"Diamonds#15.png","value":"5.42"},{"layer":"EYES","filename":"Dollars#25.png","value":"9.03"},{"layer":"EYES","filename":"HeartBlack#4.png","value":"1.44"},{"layer":"EYES","filename":"HeartGold#4.png","value":"1.44"},{"layer":"EYES","filename":"HeartRed#4.png","value":"1.44"},{"layer":"EYES","filename":"Kiss#20.png","value":"7.22"},{"layer":"EYES","filename":"Matrix01#9.png","value":"3.25"},{"layer":"EYES","filename":"Matrix02#9.png","value":"3.25"},{"layer":"EYES","filename":"Pirate#20.png","value":"7.22"},{"layer":"EYES","filename":"RayBan1970#6.png","value":"2.17"},{"layer":"EYES","filename":"RayBanBlack#8.png","value":"2.89"},{"layer":"EYES","filename":"RayBanBlue#5.png","value":"1.81"},{"layer":"EYES","filename":"RayBanGreen#5.png","value":"1.81"},{"layer":"EYES","filename":"RayBanMini#2.png","value":"0.72"},{"layer":"EYES","filename":"RayBanNear#8.png","value":"2.89"},{"layer":"EYES","filename":"RayBanRed#3.png","value":"1.08"},{"layer":"EYES","filename":"RayBanYellow#8.png","value":"2.89"},{"layer":"EYES","filename":"Regular#60.png","value":"21.66"},{"layer":"EYES","filename":"SkiBlue#3.png","value":"1.08"},{"layer":"EYES","filename":"SkiGold#3.png","value":"1.08"},{"layer":"EYES","filename":"StarBlack#2.png","value":"0.72"},{"layer":"EYES","filename":"StarGold#2.png","value":"0.72"},{"layer":"EYES","filename":"StarRed#2.png","value":"0.72"},{"layer":"EYES","filename":"Three#10.png","value":"3.61"},{"layer":"EYES","filename":"Wire#10.png","value":"3.61"},{"layer":"HEAD","filename":"ArmyHelmet.png","value":"1.52"},{"layer":"HEAD","filename":"BackwardGreenCap.png","value":"1.52"},{"layer":"HEAD","filename":"BackwardRedCap.png","value":"1.52"},{"layer":"HEAD","filename":"BackwardWhiteCap.png","value":"1.52"},{"layer":"HEAD","filename":"BandMVX.png","value":"1.52"},{"layer":"HEAD","filename":"BandNGMI.png","value":"1.52"},{"layer":"HEAD","filename":"BeretBlack.png","value":"1.52"},{"layer":"HEAD","filename":"BeretRed.png","value":"1.52"},{"layer":"HEAD","filename":"BobBlack.png","value":"1.52"},{"layer":"HEAD","filename":"BobWhite.png","value":"1.52"},{"layer":"HEAD","filename":"CanCampbell.png","value":"1.52"},{"layer":"HEAD","filename":"CanHeizn.png","value":"1.52"},{"layer":"HEAD","filename":"CapEgldRed.png","value":"1.52"},{"layer":"HEAD","filename":"CapMNGABlue.png","value":"1.52"},{"layer":"HEAD","filename":"CapPHPurple.png","value":"1.52"},{"layer":"HEAD","filename":"CapXBlack.png","value":"1.52"},{"layer":"HEAD","filename":"Chapka.png","value":"1.52"},{"layer":"HEAD","filename":"Crown.png","value":"1.52"},{"layer":"HEAD","filename":"FedoraBlack.png","value":"1.52"},{"layer":"HEAD","filename":"FedoraWhite.png","value":"1.52"},{"layer":"HEAD","filename":"FunnelGold.png","value":"1.52"},{"layer":"HEAD","filename":"FunnelSteel.png","value":"1.52"},{"layer":"HEAD","filename":"HairFrizzy.png","value":"1.52"},{"layer":"HEAD","filename":"HairKind.png","value":"1.52"},{"layer":"HEAD","filename":"HairLilPunkBlack.png","value":"1.52"},{"layer":"HEAD","filename":"HairLilPunkBrown.png","value":"1.52"},{"layer":"HEAD","filename":"HairMiddlePart.png","value":"1.52"},{"layer":"HEAD","filename":"HairProf.png","value":"1.52"},{"layer":"HEAD","filename":"HairPunkBlack.png","value":"1.52"},{"layer":"HEAD","filename":"HairPunkBlue.png","value":"1.52"},{"layer":"HEAD","filename":"HairRaide.png","value":"1.52"},{"layer":"HEAD","filename":"HairRight.png","value":"1.52"},{"layer":"HEAD","filename":"HairSmart.png","value":"1.52"},{"layer":"HEAD","filename":"HaloGold.png","value":"1.52"},{"layer":"HEAD","filename":"HaloSilver.png","value":"1.52"},{"layer":"HEAD","filename":"HautDeFormeBlack.png","value":"1.52"},{"layer":"HEAD","filename":"HornHelmet.png","value":"1.52"},{"layer":"HEAD","filename":"Horns.png","value":"1.52"},{"layer":"HEAD","filename":"IceCream.png","value":"1.52"},{"layer":"HEAD","filename":"Major.png","value":"1.52"},{"layer":"HEAD","filename":"MangaBlackHair.png","value":"1.52"},{"layer":"HEAD","filename":"MangaPinkHair.png","value":"1.52"},{"layer":"HEAD","filename":"MelonBlack.png","value":"1.52"},{"layer":"HEAD","filename":"MelonRed.png","value":"1.52"},{"layer":"HEAD","filename":"MelonWhite.png","value":"1.52"},{"layer":"HEAD","filename":"MuletBlack.png","value":"1.52"},{"layer":"HEAD","filename":"MuletBlond.png","value":"1.52"},{"layer":"HEAD","filename":"NightHatBlue.png","value":"1.52"},{"layer":"HEAD","filename":"NightHatGreen.png","value":"1.52"},{"layer":"HEAD","filename":"NightHatRed.png","value":"1.52"},{"layer":"HEAD","filename":"PartyBlue.png","value":"1.52"},{"layer":"HEAD","filename":"PartyGreen.png","value":"1.52"},{"layer":"HEAD","filename":"PartyRed.png","value":"1.52"},{"layer":"HEAD","filename":"PeakyBrown.png","value":"1.52"},{"layer":"HEAD","filename":"PeakyRed.png","value":"1.52"},{"layer":"HEAD","filename":"PernBlackHair.png","value":"1.52"},{"layer":"HEAD","filename":"PernBlondHair.png","value":"1.52"},{"layer":"HEAD","filename":"SicilianBlue.png","value":"1.52"},{"layer":"HEAD","filename":"SicilianBrown.png","value":"1.52"},{"layer":"HEAD","filename":"SicilianGreen.png","value":"1.52"},{"layer":"HEAD","filename":"Sumo.png","value":"1.52"},{"layer":"HEAD","filename":"Tissu.png","value":"1.52"},{"layer":"HEAD","filename":"WalkMan.png","value":"1.52"},{"layer":"HEAD","filename":"WoolenHatBlack.png","value":"1.52"},{"layer":"HEAD","filename":"WoolenHatGreen.png","value":"1.52"},{"layer":"HEAD","filename":"WoolenHatRed.png","value":"1.52"},{"layer":"MOUTH","filename":"Cigar#40.png","value":"8.89"},{"layer":"MOUTH","filename":"Cigarette#30.png","value":"6.67"},{"layer":"MOUTH","filename":"Empty#100.png","value":"22.22"},{"layer":"MOUTH","filename":"Gag#30.png","value":"6.67"},{"layer":"MOUTH","filename":"Joint#50.png","value":"11.11"},{"layer":"MOUTH","filename":"Pipe01#20.png","value":"4.44"},{"layer":"MOUTH","filename":"Pipe02#25.png","value":"5.56"},{"layer":"MOUTH","filename":"RoseBlack#10.png","value":"2.22"},{"layer":"MOUTH","filename":"RoseRed#10.png","value":"2.22"},{"layer":"MOUTH","filename":"RoseWhite#10.png","value":"2.22"},{"layer":"MOUTH","filename":"RoseYellow#10.png","value":"2.22"},{"layer":"MOUTH","filename":"SnakeGreen#25.png","value":"5.56"},{"layer":"MOUTH","filename":"SnakeYellow#10.png","value":"2.22"},{"layer":"MOUTH","filename":"TongueRed#35.png","value":"7.78"},{"layer":"MOUTH","filename":"Totoche#45.png","value":"10.00"},{"layer":"SUITS","filename":"Anorak_Grey.png","value":"1.67"},{"layer":"SUITS","filename":"Anorak_Red.png","value":"1.67"},{"layer":"SUITS","filename":"Anorak_White.png","value":"1.67"},{"layer":"SUITS","filename":"Anorak_Yellow.png","value":"1.67"},{"layer":"SUITS","filename":"BFC.png","value":"1.67"},{"layer":"SUITS","filename":"FurBlue.png","value":"1.67"},{"layer":"SUITS","filename":"FurWhite.png","value":"1.67"},{"layer":"SUITS","filename":"FurYellow.png","value":"1.67"},{"layer":"SUITS","filename":"HoodieCult.png","value":"1.67"},{"layer":"SUITS","filename":"HoodieHere.png","value":"1.67"},{"layer":"SUITS","filename":"HoodieMvx.png","value":"1.67"},{"layer":"SUITS","filename":"HoodieOG.png","value":"1.67"},{"layer":"SUITS","filename":"HoodieRug.png","value":"1.67"},{"layer":"SUITS","filename":"HoodieSport.png","value":"1.67"},{"layer":"SUITS","filename":"HoodieSTTZ.png","value":"1.67"},{"layer":"SUITS","filename":"HoodieZip.png","value":"1.67"},{"layer":"SUITS","filename":"JacketBlack.png","value":"1.67"},{"layer":"SUITS","filename":"JacketMoto.png","value":"1.67"},{"layer":"SUITS","filename":"JacketRed.png","value":"1.67"},{"layer":"SUITS","filename":"KimonoRed.png","value":"1.67"},{"layer":"SUITS","filename":"KimonoWhite.png","value":"1.67"},{"layer":"SUITS","filename":"KimonoYellow.png","value":"1.67"},{"layer":"SUITS","filename":"Major.png","value":"1.67"},{"layer":"SUITS","filename":"MarcelBlack.png","value":"1.67"},{"layer":"SUITS","filename":"MarcelBlue.png","value":"1.67"},{"layer":"SUITS","filename":"MarcelRed.png","value":"1.67"},{"layer":"SUITS","filename":"MarcelWhite.png","value":"1.67"},{"layer":"SUITS","filename":"MarcelYellow.png","value":"1.67"},{"layer":"SUITS","filename":"PostApoJacket.png","value":"1.67"},{"layer":"SUITS","filename":"PullBear.png","value":"1.67"},{"layer":"SUITS","filename":"PullBlack.png","value":"1.67"},{"layer":"SUITS","filename":"PullBlue.png","value":"1.67"},{"layer":"SUITS","filename":"PullRed.png","value":"1.67"},{"layer":"SUITS","filename":"PullWhite.png","value":"1.67"},{"layer":"SUITS","filename":"PullYellow.png","value":"1.67"},{"layer":"SUITS","filename":"PyjamaBlue.png","value":"1.67"},{"layer":"SUITS","filename":"PyjamaRed.png","value":"1.67"},{"layer":"SUITS","filename":"SalopetteBlue.png","value":"1.67"},{"layer":"SUITS","filename":"SalopetteRed.png","value":"1.67"},{"layer":"SUITS","filename":"SalopetteWhite.png","value":"1.67"},{"layer":"SUITS","filename":"ShirtBlack.png","value":"1.67"},{"layer":"SUITS","filename":"ShirtBlue.png","value":"1.67"},{"layer":"SUITS","filename":"ShirtPink.png","value":"1.67"},{"layer":"SUITS","filename":"ShirtRed.png","value":"1.67"},{"layer":"SUITS","filename":"TankBlack.png","value":"1.67"},{"layer":"SUITS","filename":"TankRed.png","value":"1.67"},{"layer":"SUITS","filename":"TankWhite.png","value":"1.67"},{"layer":"SUITS","filename":"TieShirtBlue.png","value":"1.67"},{"layer":"SUITS","filename":"TieShirtGreen.png","value":"1.67"},{"layer":"SUITS","filename":"TieShirtWhite.png","value":"1.67"},{"layer":"SUITS","filename":"TShirtBlack.png","value":"1.67"},{"layer":"SUITS","filename":"TShirtBlue.png","value":"1.67"},{"layer":"SUITS","filename":"TShirtRed.png","value":"1.67"},{"layer":"SUITS","filename":"TShirtWhite.png","value":"1.67"},{"layer":"SUITS","filename":"ZeroTsBlack.png","value":"1.67"},{"layer":"SUITS","filename":"ZeroTsBlue.png","value":"1.67"},{"layer":"SUITS","filename":"ZeroTsGreen.png","value":"1.67"},{"layer":"SUITS","filename":"ZeroTsRed.png","value":"1.67"},{"layer":"SUITS","filename":"ZeroTsWhite.png","value":"1.67"},{"layer":"SUITS","filename":"ZeroTsYellow.png","value":"1.67"}];
+    function getDefault(layer, filename) {
+      return defaultValues.find((d) => d.layer === layer && d.filename === filename)?.value ?? "";
+    }
+    function exportCustomPercentages() {
+      const rows = [["Trait Type","Element Name","Filename","Custom %"]];
+      document.querySelectorAll(".trait-pct-input").forEach((input) => {
+        const layer = input.dataset.layer;
+        const filename = input.dataset.filename;
+        const name = filename.split("#")[0].replace(/.png$/i, "") || filename;
+        rows.push([layer, name, filename, input.value]);
+      });
+      const csv = rows.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "custom-percentages.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function resetToCalculated() {
+      document.querySelectorAll(".trait-pct-input").forEach((input) => {
+        input.value = getDefault(input.dataset.layer, input.dataset.filename);
+      });
+    }
+  </script>
+</body>
+</html>

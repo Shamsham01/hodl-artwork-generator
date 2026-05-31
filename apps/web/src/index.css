@@ -1,0 +1,119 @@
+@import "tailwindcss";
+@import "@fontsource/geist-sans/400.css";
+@import "@fontsource/geist-sans/500.css";
+@import "@fontsource/geist-sans/600.css";
+@import "@fontsource/geist-sans/700.css";
+
+@theme {
+  --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-surface: #050505;
+  --color-surface-elevated: #0f0f0f;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-accent: #10b981;
+  --color-accent-dim: rgba(16, 185, 129, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-surface);
+  color: #f4f4f5;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.glass-panel {
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-panel {
+    background: #111;
+    backdrop-filter: none;
+  }
+}
+
+.bezel-outer {
+  padding: 6px;
+  border-radius: 1.25rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.bezel-inner {
+  border-radius: calc(1.25rem - 6px);
+  background: #0a0a0a;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.06);
+}
+
+.mesh-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(16,185,129,0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(16,185,129,0.06), transparent),
+    #050505;
+}
+
+/* Hero collage: gold/blue HODL-tinted mesh */
+.hodl-mesh {
+  background:
+    radial-gradient(ellipse 70% 55% at 15% -10%, rgba(16,185,129,0.14), transparent),
+    radial-gradient(ellipse 55% 45% at 90% 0%, rgba(212,175,55,0.10), transparent),
+    radial-gradient(ellipse 60% 50% at 80% 115%, rgba(37,99,235,0.10), transparent),
+    #050505;
+}
+
+/* Vertical marquee columns for the NFT wall */
+.marquee-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  will-change: transform;
+}
+.marquee-up { animation: marquee-up 38s linear infinite; }
+.marquee-down { animation: marquee-down 46s linear infinite; }
+
+@keyframes marquee-up {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+@keyframes marquee-down {
+  from { transform: translateY(-50%); }
+  to { transform: translateY(0); }
+}
+
+/* Soft top/bottom fade mask for the collage */
+.collage-mask {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-up, .marquee-down { animation: none; }
+}
+
+/* Subtle gold hairline used for HODL brand accents */
+.gold-ring {
+  border: 1px solid rgba(212,175,55,0.25);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(212,175,55,0.06);
+}

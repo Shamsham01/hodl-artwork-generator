@@ -1,0 +1,34 @@
+# Render Blueprint — HODL Artwork Generator API
+# Deploy: Render Dashboard → New → Blueprint → pick this repo.
+# Set the `sync: false` secrets in the dashboard after the service is created.
+services:
+  - type: web
+    name: hodl-artwork-api
+    runtime: node
+    plan: starter # always-on (Free tier sleeps and would pause the job worker)
+    region: frankfurt # closest to EU; matches your eu-central setup
+    branch: main
+    # Install only the engine + api workspaces (skips the heavy web app and its
+    # peer-dep conflicts). Workspaces auto-link @basturds/engine for the API.
+    buildCommand: npm install -w packages/engine -w apps/api --include-workspace-root
+    startCommand: npm start --workspace=apps/api
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20.18.0"
+      - key: NODE_ENV
+        value: production
+      # Heavy canvas rendering on 0.5 CPU / 512 MB: keep one job at a time.
+      - key: MAX_CONCURRENT_JOBS
+        value: "1"
+      - key: MAX_EDITION_SIZE
+        value: "10000"
+      # --- Secrets: set these in the Render dashboard (never commit them) ---
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Your Netlify URL, e.g. https://hodl-artwork-generator.netlify.app
+      - key: FRONTEND_URL
+        sync: false
