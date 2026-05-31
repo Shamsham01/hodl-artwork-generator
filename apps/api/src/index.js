@@ -51,12 +51,17 @@ app.get("/health", (_req, res) => {
 
 app.post("/api/preview", authMiddleware, async (req, res) => {
   try {
-    const { projectId, selectedTraits } = req.body;
+    const { projectId, selectedTraits, configurationId } = req.body;
     if (!projectId) {
       return res.status(400).json({ error: "projectId required" });
     }
 
-    const result = await createPreview(projectId, req.userId, selectedTraits);
+    const result = await createPreview(
+      projectId,
+      req.userId,
+      selectedTraits || {},
+      configurationId || null
+    );
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

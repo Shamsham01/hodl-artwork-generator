@@ -277,30 +277,49 @@ function startWorker() {
     });
 }
 
-async function createPreview(projectId, userId, selectedTraits) {
-  const { layers, traitsByLayerId, config, allLayersOrder } =
+async function createPreview(projectId, userId, selectedTraits, configurationId = null) {
+  const { layers, traitsByLayerId, config, allLayersOrder, layerConfigRecords } =
     await loadProjectConfig(projectId, userId);
 
-  // Preview always renders the full layer stack (every uploaded layer),
-  // regardless of how the collection is split into configurations.
-  if (allLayersOrder?.length) {
-    config.layerConfigurations = [
-      { growEditionSizeTo: 1, layersOrder: allLayersOrder },
-    ];
+  let layersOrder = allLayersOrder;
+
+  if (configurationId && layerConfigRecords.length) {
+    const record = layerConfigRecords.find((c) => c.id === configurationId);
+    if (record) {
+      const order = Array.isArray(record.layers_order) ? record.layers_order : [];
+      layersOrder = order
+        .map((entry) => {
+          const name = typeof entry === "string" ? entry : entry.name;
+          const match = layers.find((l) => l.name === name);
+          return match ? { name, options: match.options || {} } : null;
+        })
+        .filter(Boolean);
+    }
+  } else if (config.layerConfigurations?.[0]?.layersOrder?.length) {
+    layersOrder = config.layerConfigurations[0].layersOrder;
   }
 
-  // Only download the selected trait per layer (not the whole collection),
-  // so a single preview renders in well under a second.
+  config.layerConfigurations = [{ growEditionSizeTo: 1, layersOrder }];
+
+  const orderedLayers = layersOrder
+    .map((lo) => layers.find((l) => l.name === lo.name))
+    .filter(Boolean);
+
+  const filteredSelections = {};
+  for (const { name } of layersOrder) {
+    if (selectedTraits[name] != null) filteredSelections[name] = selectedTraits[name];
+  }
+
   const assets = await downloadSelectedTraits(
-    layers,
+    orderedLayers,
     traitsByLayerId,
-    selectedTraits
+    filteredSelections
   );
 
   try {
     const result = await renderSingle(config, {
       traitsByLayer: assets.traitsByLayer,
-      selectedTraits,
+      selectedTraits: filteredSelections,
       edition: 1,
     });
 

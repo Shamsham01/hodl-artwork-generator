@@ -54,10 +54,10 @@ async function apiFetchBlob(path, fallbackName) {
 }
 
 export const api = {
-  preview: (projectId, selectedTraits) =>
+  preview: (projectId, selectedTraits, configurationId) =>
     apiFetch("/api/preview", {
       method: "POST",
-      body: JSON.stringify({ projectId, selectedTraits }),
+      body: JSON.stringify({ projectId, selectedTraits, configurationId }),
     }),
 
   generate: (projectId, editionSize) =>

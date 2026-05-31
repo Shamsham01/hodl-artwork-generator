@@ -161,7 +161,7 @@ async function loadProjectConfig(projectId, userId) {
     },
   };
 
-  return { project, layers, traitsByLayerId, config, totalEditions, allLayersOrder };
+  return { project, layers, traitsByLayerId, config, totalEditions, allLayersOrder, layerConfigRecords: layerConfigs || [] };
 }
 
 /**
