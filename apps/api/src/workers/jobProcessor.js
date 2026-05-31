@@ -160,9 +160,39 @@ async function pollQueuedJobs() {
   }
 }
 
+/**
+ * On (re)start, no job is actually running inside this fresh process. Any row
+ * still marked "running" is orphaned from a previous crash/restart/deploy, so
+ * fail it — otherwise the project stays locked in "generating" forever and the
+ * UI shows a frozen progress bar with no way to recover.
+ */
+async function recoverOrphanedJobs() {
+  const { data: orphaned } = await supabase
+    .from("generation_jobs")
+    .update({
+      status: "failed",
+      error_message: "Worker restarted before this job completed",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("status", "running")
+    .select("project_id");
+
+  const projectIds = [...new Set((orphaned || []).map((j) => j.project_id))];
+  if (projectIds.length) {
+    await supabase
+      .from("projects")
+      .update({ status: "ready" })
+      .in("id", projectIds);
+  }
+}
+
 function startWorker() {
-  setInterval(pollQueuedJobs, 5000);
-  pollQueuedJobs();
+  recoverOrphanedJobs()
+    .catch((err) => console.error("Orphaned job recovery failed:", err))
+    .finally(() => {
+      setInterval(pollQueuedJobs, 5000);
+      pollQueuedJobs();
+    });
 }
 
 async function createPreview(projectId, userId, selectedTraits) {
