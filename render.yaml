@@ -15,8 +15,10 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
+      # Node 22+ required: @supabase/supabase-js (realtime-js) needs a native
+      # global WebSocket, which Node 20 lacks.
       - key: NODE_VERSION
-        value: "20.18.0"
+        value: "22.11.0"
       - key: NODE_ENV
         value: production
       # Heavy canvas rendering on 0.5 CPU / 512 MB: keep one job at a time.
