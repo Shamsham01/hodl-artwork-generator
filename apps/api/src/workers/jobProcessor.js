@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const archiver = require("archiver");
-const { renderSingle, renderBatch, createThumbnail } = require("@basturds/engine");
+const { renderSingle, renderBatch, createThumbnail, filterDNAOptions } = require("@basturds/engine");
 const { supabase } = require("../lib/supabase");
 const {
   loadProjectConfig,
@@ -14,6 +14,27 @@ const {
 const MAX_CONCURRENT = parseInt(process.env.MAX_CONCURRENT_JOBS || "3", 10);
 const MAX_EDITION_SIZE = parseInt(process.env.MAX_EDITION_SIZE || "10000", 10);
 let activeJobs = 0;
+
+async function loadResumeState(jobId) {
+  const { data: editions } = await supabase
+    .from("generated_editions")
+    .select("edition_number, dna, metadata")
+    .eq("job_id", jobId)
+    .order("edition_number");
+
+  if (!editions?.length) return null;
+
+  const dnaList = new Set();
+  const doneEditions = new Set();
+  const metadataList = [];
+  for (const e of editions) {
+    if (e.dna) dnaList.add(filterDNAOptions(e.dna));
+    doneEditions.add(e.edition_number);
+    if (e.metadata) metadataList.push(e.metadata);
+  }
+
+  return { completed: editions.length, dnaList, doneEditions, metadataList };
+}
 
 async function processJob(jobId) {
   if (activeJobs >= MAX_CONCURRENT) return;
@@ -63,9 +84,17 @@ async function processJob(jobId) {
     const outputDir = path.join(tmpDir, "build");
     const outputPrefix = `${job.projects.owner_id}/${job.project_id}/jobs/${jobId}`;
 
+    const resumeState = await loadResumeState(jobId);
+    if (resumeState?.completed) {
+      console.log(
+        `Resuming job ${jobId} from edition ${resumeState.completed + 1} (${resumeState.completed} already done)`
+      );
+    }
+
     await renderBatch(config, {
       traitsByLayer: assets.traitsByLayer,
       outputDir,
+      resumeState,
       onProgress: async ({ completed, total, edition }) => {
         await supabase
           .from("generation_jobs")
@@ -73,6 +102,15 @@ async function processJob(jobId) {
           .eq("id", jobId);
       },
       onEdition: async ({ edition, dna, metadata, buffer }) => {
+        const { data: existing } = await supabase
+          .from("generated_editions")
+          .select("id")
+          .eq("job_id", jobId)
+          .eq("edition_number", edition)
+          .maybeSingle();
+
+        if (existing) return;
+
         const imagePath = `${outputPrefix}/images/${edition}.png`;
         const thumbPath = `${outputPrefix}/thumbs/${edition}.webp`;
         const metadataPath = `${outputPrefix}/json/${edition}.json`;
@@ -176,27 +214,57 @@ async function pollQueuedJobs() {
 
 /**
  * On (re)start, no job is actually running inside this fresh process. Any row
- * still marked "running" is orphaned from a previous crash/restart/deploy, so
- * fail it — otherwise the project stays locked in "generating" forever and the
- * UI shows a frozen progress bar with no way to recover.
+ * still marked "running" is orphaned from a deploy/restart/OOM-kill. Re-queue
+ * it so the worker resumes from the last uploaded edition instead of failing
+ * the whole run and locking the UI.
  */
 async function recoverOrphanedJobs() {
   const { data: orphaned } = await supabase
     .from("generation_jobs")
-    .update({
-      status: "failed",
-      error_message: "Worker restarted before this job completed",
-      completed_at: new Date().toISOString(),
-    })
-    .eq("status", "running")
-    .select("project_id");
+    .select("id, project_id, edition_size, progress")
+    .eq("status", "running");
 
-  const projectIds = [...new Set((orphaned || []).map((j) => j.project_id))];
-  if (projectIds.length) {
+  if (!orphaned?.length) return;
+
+  for (const job of orphaned) {
+    const { count } = await supabase
+      .from("generated_editions")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", job.id);
+
+    const done = count || 0;
+    const target = job.edition_size || 0;
+
+    if (target > 0 && done >= target) {
+      console.log(`Finalizing orphaned job ${job.id} (${done}/${target} editions)`);
+      await supabase
+        .from("generation_jobs")
+        .update({
+          status: "complete",
+          progress: target,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", job.id);
+      await supabase
+        .from("projects")
+        .update({ status: "complete" })
+        .eq("id", job.project_id);
+      continue;
+    }
+
+    console.log(`Re-queuing orphaned job ${job.id} (${done}/${target} editions done)`);
+    await supabase
+      .from("generation_jobs")
+      .update({
+        status: "queued",
+        progress: done,
+        error_message: null,
+      })
+      .eq("id", job.id);
     await supabase
       .from("projects")
-      .update({ status: "ready" })
-      .in("id", projectIds);
+      .update({ status: "generating" })
+      .eq("id", job.project_id);
   }
 }
 

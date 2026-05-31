@@ -198,6 +198,7 @@ const renderBatch = async (config, options = {}) => {
     outputDir,
     onProgress,
     onEdition,
+    resumeState = null,
   } = options;
 
   const network = config.network || NETWORK.eth;
@@ -227,10 +228,18 @@ const renderBatch = async (config, options = {}) => {
     abstractedIndexes = shuffle(abstractedIndexes);
   }
 
-  const dnaList = new Set();
-  const metadataList = [];
+  // Resume after a worker restart: skip editions already uploaded and seed the
+  // DNA set so we don't regenerate duplicates.
+  if (resumeState?.doneEditions?.size) {
+    abstractedIndexes = abstractedIndexes.filter(
+      (i) => !resumeState.doneEditions.has(i)
+    );
+  }
+
+  const dnaList = resumeState?.dnaList ? new Set(resumeState.dnaList) : new Set();
+  const metadataList = resumeState?.metadataList ? [...resumeState.metadataList] : [];
   let failedCount = 0;
-  let completed = 0; // total editions generated so far (across all configs)
+  let completed = resumeState?.completed ?? 0;
 
   for (
     let layerConfigIndex = 0;
@@ -277,11 +286,13 @@ const renderBatch = async (config, options = {}) => {
       abstractedIndexes.shift();
       failedCount = 0;
 
+      // Must await so upload/thumbnail work finishes before the next render.
+      // Firing these concurrently caused memory to spike and OOM-killed Render.
       if (onProgress) {
-        onProgress({ completed, total: totalEditions, edition });
+        await onProgress({ completed, total: totalEditions, edition });
       }
       if (onEdition) {
-        onEdition({ edition, dna: newDna, metadata, buffer });
+        await onEdition({ edition, dna: newDna, metadata, buffer });
       }
     }
   }
