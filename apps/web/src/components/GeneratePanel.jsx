@@ -172,37 +172,51 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     setLoadingRarity(false);
   }
 
-  async function fetchResults(offset = 0, append = false) {
+  // Load the next page of editions and APPEND only ones we don't already have.
+  // We never re-download images already shown — re-fetching the same full-res
+  // PNGs on every progress tick was the main source of Supabase egress.
+  async function fetchMoreResults() {
     if (!job?.id) return;
     setLoadingResults(true);
     try {
       const { editions, total } = await api.getEditions(job.id, {
         limit: PAGE_SIZE,
-        offset,
+        offset: loadedCountRef.current,
       });
       setResultsTotal(total);
-      setResults((prev) => (append ? [...prev, ...editions] : editions));
+      if (editions.length) {
+        setResults((prev) => {
+          const seen = new Set(prev.map((r) => r.edition));
+          const next = [...prev];
+          for (const e of editions) if (!seen.has(e.edition)) next.push(e);
+          return next;
+        });
+      }
     } catch {
       // ignore transient errors while generating
     }
     setLoadingResults(false);
   }
 
-  // Live results: refresh the first page as editions are produced, and once
-  // more when generation completes. Throttled to avoid hammering the API.
+  // Live results: incrementally pull only newly-produced editions as progress
+  // advances (each image is downloaded exactly once). Throttled to every 5s.
   const lastFetchRef = useRef(0);
+  const loadedCountRef = useRef(0);
+  useEffect(() => {
+    loadedCountRef.current = results.length;
+  }, [results.length]);
+
   useEffect(() => {
     if (!job?.id) return;
-    if (job.status === "complete") {
-      fetchResults(0, false);
-      return;
-    }
-    if (job.status === "running" || job.status === "queued") {
-      const now = Date.now();
-      if (now - lastFetchRef.current > 3000) {
-        lastFetchRef.current = now;
-        fetchResults(0, false);
-      }
+    const active =
+      job.status === "complete" ||
+      job.status === "running" ||
+      job.status === "queued";
+    if (!active) return;
+    const now = Date.now();
+    if (job.status === "complete" || now - lastFetchRef.current > 5000) {
+      lastFetchRef.current = now;
+      fetchMoreResults();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job?.id, job?.status, job?.progress]);
@@ -383,7 +397,7 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                 </div>
                 {results.length < resultsTotal && (
                   <button
-                    onClick={() => fetchResults(results.length, true)}
+                    onClick={fetchMoreResults}
                     disabled={loadingResults}
                     className="mx-auto block text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
                   >
