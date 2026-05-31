@@ -7,6 +7,7 @@ import {
   X,
   Stack,
   CheckCircle,
+  DotsSixVertical,
 } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 
@@ -166,17 +167,51 @@ function ConfigCard({ index, config, availableLayers, canDelete, onUpdate, onDel
   const order = Array.isArray(config.layers_order) ? config.layers_order : [];
   const includedNames = order.map((o) => (typeof o === "string" ? o : o.name));
   const notIncluded = availableLayers.filter((n) => !includedNames.includes(n));
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
 
   function setOrder(names) {
     onUpdate({ layers_order: names.map((name) => ({ name })) });
   }
 
-  function moveLayer(from, to) {
-    if (to < 0 || to >= includedNames.length) return;
+  function reorderLayers(from, to) {
+    if (from === to || from < 0 || to < 0 || from >= includedNames.length || to >= includedNames.length) {
+      return;
+    }
     const next = [...includedNames];
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
     setOrder(next);
+  }
+
+  function moveLayer(from, to) {
+    reorderLayers(from, to);
+  }
+
+  function handleDragStart(e, i) {
+    setDragIndex(i);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(i));
+  }
+
+  function handleDragOver(e, i) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragIndex !== null && i !== dragIndex) setOverIndex(i);
+  }
+
+  function handleDrop(e, i) {
+    e.preventDefault();
+    const from =
+      dragIndex ?? parseInt(e.dataTransfer.getData("text/plain"), 10);
+    if (!Number.isNaN(from)) reorderLayers(from, i);
+    setDragIndex(null);
+    setOverIndex(null);
+  }
+
+  function handleDragEnd() {
+    setDragIndex(null);
+    setOverIndex(null);
   }
 
   return (
@@ -217,7 +252,7 @@ function ConfigCard({ index, config, availableLayers, canDelete, onUpdate, onDel
 
         <div>
           <label className="text-xs text-zinc-500 block mb-2">
-            Layers (top = back, bottom = front)
+            Layers (top = back, bottom = front) — drag to reorder
           </label>
           {includedNames.length === 0 ? (
             <p className="text-xs text-zinc-600 py-2">No layers selected yet.</p>
@@ -226,11 +261,29 @@ function ConfigCard({ index, config, availableLayers, canDelete, onUpdate, onDel
               {includedNames.map((name, i) => (
                 <li
                   key={name}
-                  className="flex items-center gap-3 rounded-lg bg-zinc-900/60 border border-zinc-800 px-3 py-2"
+                  onDragOver={(e) => handleDragOver(e, i)}
+                  onDrop={(e) => handleDrop(e, i)}
+                  className={`flex items-center gap-2 rounded-lg bg-zinc-900/60 border px-3 py-2 transition-colors ${
+                    dragIndex === i
+                      ? "opacity-40 border-zinc-800"
+                      : overIndex === i
+                        ? "border-emerald-500/40 bg-emerald-500/5"
+                        : "border-zinc-800"
+                  }`}
                 >
-                  <span className="text-xs text-zinc-600 w-6">{i + 1}</span>
+                  <button
+                    type="button"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, i)}
+                    onDragEnd={handleDragEnd}
+                    className="cursor-grab active:cursor-grabbing touch-none text-zinc-600 hover:text-zinc-400 shrink-0 p-0.5 -ml-0.5"
+                    aria-label={`Drag to reorder ${name}`}
+                  >
+                    <DotsSixVertical size={16} weight="bold" />
+                  </button>
+                  <span className="text-xs text-zinc-600 w-5">{i + 1}</span>
                   <span className="flex-1 text-sm text-white">{name}</span>
-                  <span className="text-[10px] text-zinc-600">
+                  <span className="text-[10px] text-zinc-600 w-8 text-right">
                     {i === 0 ? "back" : i === includedNames.length - 1 ? "front" : ""}
                   </span>
                   <div className="flex gap-1">
