@@ -4,7 +4,7 @@ const os = require("os");
 const archiver = require("archiver");
 const { renderSingle, renderBatch, createThumbnail, filterDNAOptions } = require("@basturds/engine");
 const { supabase } = require("../lib/supabase");
-const { ensureTraitThumb, traitThumbPath } = require("../services/thumbnails");
+const { ensureTraitThumbs, traitThumbPath, listLayerThumbNames } = require("../services/thumbnails");
 const {
   loadProjectConfig,
   downloadProjectAssets,
@@ -680,11 +680,31 @@ async function listJobEditions(
   return { editions: result, total: count || 0 };
 }
 
+async function signStorageUrls(bucket, paths, ttl) {
+  const urlByPath = {};
+  const CHUNK = 50;
+  for (let i = 0; i < paths.length; i += CHUNK) {
+    const chunk = paths.slice(i, i + CHUNK);
+    const { data: signed, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrls(chunk, ttl);
+    if (error) {
+      console.error(`signStorageUrls batch ${i}:`, error.message);
+      continue;
+    }
+    for (const s of signed || []) {
+      if (s.path && s.signedUrl) urlByPath[s.path] = s.signedUrl;
+      if (s.error) console.error(`Sign failed ${s.path}:`, s.error);
+    }
+  }
+  return urlByPath;
+}
+
 /**
  * Signed WebP preview URLs for every trait in a layer. Creates missing thumbs
  * on first request (one-time cost); the Traits page never loads full PNGs.
  */
-async function listTraitPreviews(projectId, layerId, userId) {
+async function listTraitPreviews(projectId, layerId, userId, { offset = 0, limit = 40 } = {}) {
   const { data: project } = await supabase
     .from("projects")
     .select("id")
@@ -706,33 +726,39 @@ async function listTraitPreviews(projectId, layerId, userId) {
   const { data: traits } = await supabase
     .from("traits")
     .select("id, storage_path")
-    .eq("layer_id", layerId);
+    .eq("layer_id", layerId)
+    .order("name");
 
-  for (const trait of traits || []) {
-    try {
-      await ensureTraitThumb(trait.storage_path);
-    } catch (err) {
-      console.error(`Trait preview ${trait.storage_path}:`, err.message);
-    }
+  if (!traits?.length) return { urls: {}, total: 0, offset, limit, hasMore: false };
+
+  const slice = traits.slice(offset, offset + limit);
+  const layerDir = traits[0].storage_path.slice(0, traits[0].storage_path.lastIndexOf("/"));
+  const existingThumbs = await listLayerThumbNames(layerDir);
+
+  const missing = slice
+    .filter((t) => !existingThumbs.has(traitThumbPath(t.storage_path).split("/").pop()))
+    .map((t) => t.storage_path);
+
+  if (missing.length) {
+    await ensureTraitThumbs(missing, { concurrency: 4, existingNames: existingThumbs });
   }
 
-  const thumbPaths = (traits || []).map((t) => traitThumbPath(t.storage_path));
-  const urlByPath = {};
-  if (thumbPaths.length) {
-    const { data: signed } = await supabase.storage
-      .from("layer-assets")
-      .createSignedUrls(thumbPaths, SIGNED_URL_TTL);
-    (signed || []).forEach((s) => {
-      if (s.path && s.signedUrl) urlByPath[s.path] = s.signedUrl;
-    });
-  }
+  const thumbPaths = slice.map((t) => traitThumbPath(t.storage_path));
+  const urlByPath = await signStorageUrls("layer-assets", thumbPaths, SIGNED_URL_TTL);
 
   const urls = {};
-  for (const trait of traits || []) {
-    urls[trait.id] = urlByPath[traitThumbPath(trait.storage_path)] || null;
+  for (const trait of slice) {
+    const path = traitThumbPath(trait.storage_path);
+    urls[trait.id] = urlByPath[path] || null;
   }
 
-  return { urls };
+  return {
+    urls,
+    total: traits.length,
+    offset,
+    limit,
+    hasMore: offset + limit < traits.length,
+  };
 }
 
 module.exports = {

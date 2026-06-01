@@ -305,10 +305,13 @@ app.get("/api/jobs/:id/editions", authMiddleware, async (req, res) => {
 
 app.get("/api/projects/:id/layers/:layerId/trait-previews", authMiddleware, async (req, res) => {
   try {
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 40, 60);
     const result = await listTraitPreviews(
       req.params.id,
       req.params.layerId,
-      req.userId
+      req.userId,
+      { offset, limit }
     );
     res.json(result);
   } catch (err) {

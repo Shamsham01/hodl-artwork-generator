@@ -114,6 +114,8 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
   const [visible, setVisible] = useState(false);
   const [previewUrls, setPreviewUrls] = useState(null);
   const [loadingPreviews, setLoadingPreviews] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
+  const fetchGen = useRef(0);
 
   useEffect(() => {
     const el = ref.current;
@@ -132,30 +134,73 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
   }, []);
 
   useEffect(() => {
-    if (!visible || previewUrls || loadingPreviews) return;
+    if (!visible || previewUrls !== null || loadingPreviews) return;
+
+    const gen = ++fetchGen.current;
     let active = true;
     setLoadingPreviews(true);
+    setPreviewError(false);
+
     api
-      .getTraitPreviews(projectId, layer.id)
-      .then(({ urls }) => {
-        if (active) setPreviewUrls(urls || {});
+      .getTraitPreviews(projectId, layer.id, { offset: 0, limit: 40 })
+      .then(async (first) => {
+        if (!active || gen !== fetchGen.current) return;
+        const merged = { ...(first.urls || {}) };
+        setPreviewUrls(merged);
+
+        let offset = first.limit || 40;
+        while (first.hasMore && active && gen === fetchGen.current) {
+          const page = await api.getTraitPreviews(projectId, layer.id, {
+            offset,
+            limit: 40,
+          });
+          if (!active || gen !== fetchGen.current) return;
+          Object.assign(merged, page.urls || {});
+          setPreviewUrls({ ...merged });
+          if (!page.hasMore) break;
+          offset += page.limit || 40;
+        }
       })
       .catch(() => {
-        if (active) setPreviewUrls({});
+        if (!active || gen !== fetchGen.current) return;
+        setPreviewError(true);
+        setPreviewUrls(null);
       })
       .finally(() => {
-        if (active) setLoadingPreviews(false);
+        if (active && gen === fetchGen.current) setLoadingPreviews(false);
       });
+
     return () => {
       active = false;
     };
   }, [visible, projectId, layer.id, previewUrls, loadingPreviews]);
 
+  function retryPreviews() {
+    fetchGen.current++;
+    setPreviewUrls(null);
+    setPreviewError(false);
+  }
+
+  const loadedCount =
+    previewUrls && Object.values(previewUrls).filter(Boolean).length;
+
   return (
     <section ref={ref}>
-      <h3 className="text-lg font-semibold text-white mb-1">{layer.name}</h3>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <h3 className="text-lg font-semibold text-white">{layer.name}</h3>
+        {previewError && (
+          <button
+            type="button"
+            onClick={retryPreviews}
+            className="text-xs text-emerald-400 hover:text-emerald-300 shrink-0"
+          >
+            Retry previews
+          </button>
+        )}
+      </div>
       <p className="text-xs text-zinc-500 mb-4">
         {layer.traits.length} traits · total weight {layer.totalWeight}
+        {loadedCount > 0 && ` · ${loadedCount} previews loaded`}
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
         {layer.traits.map((trait) => (
@@ -164,6 +209,7 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
             trait={trait}
             imgUrl={previewUrls?.[trait.id]}
             loadingPreview={visible && loadingPreviews}
+            previewFailed={previewUrls !== null && !previewUrls[trait.id] && !loadingPreviews}
             saving={saving === trait.id}
             onWeightChange={(w) => onWeightChange(trait.id, w)}
           />
@@ -173,7 +219,7 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
   );
 }
 
-function TraitCard({ trait, imgUrl, loadingPreview, saving, onWeightChange }) {
+function TraitCard({ trait, imgUrl, loadingPreview, previewFailed, saving, onWeightChange }) {
   return (
     <div className="bezel-outer">
       <div className="bezel-inner p-2">
@@ -187,6 +233,10 @@ function TraitCard({ trait, imgUrl, loadingPreview, saving, onWeightChange }) {
             />
           ) : loadingPreview ? (
             <div className="w-full h-full animate-pulse bg-zinc-800" />
+          ) : previewFailed ? (
+            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 px-2 text-center">
+              Preview unavailable
+            </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-600 px-2 text-center">
               Scroll to load preview
