@@ -119,7 +119,7 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
     const el = ref.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry) => {
+      ([entry]) => {
         if (entry.isIntersecting) {
           setVisible(true);
           observer.disconnect();
