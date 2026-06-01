@@ -134,8 +134,9 @@ function TraitCard({ trait, saving, onWeightChange }) {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
   const [src, setSrc] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // "idle" | "loading" | "done" | "failed" — kept out of the fetch effect's
+  // dependency array so updating it never tears down the in-flight download.
+  const [status, setStatus] = useState("idle");
 
   useEffect(() => {
     const el = ref.current;
@@ -154,31 +155,32 @@ function TraitCard({ trait, saving, onWeightChange }) {
   }, []);
 
   useEffect(() => {
-    if (!visible || !trait.storage_path || src || loading || failed) return;
+    if (!visible || !trait.storage_path) return;
 
-    let active = true;
-    setLoading(true);
+    let cancelled = false;
+    setStatus("loading");
 
     fetchTraitPreviewBlobUrl(trait.storage_path)
       .then((blobUrl) => {
-        if (!active) {
+        if (cancelled) {
           revokeBlobUrl(blobUrl);
           return;
         }
-        if (blobUrl) setSrc(blobUrl);
-        else setFailed(true);
+        if (blobUrl) {
+          setSrc(blobUrl);
+          setStatus("done");
+        } else {
+          setStatus("failed");
+        }
       })
       .catch(() => {
-        if (active) setFailed(true);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (!cancelled) setStatus("failed");
       });
 
     return () => {
-      active = false;
+      cancelled = true;
     };
-  }, [visible, trait.storage_path, src, loading, failed]);
+  }, [visible, trait.storage_path]);
 
   useEffect(() => {
     return () => revokeBlobUrl(src);
@@ -194,12 +196,12 @@ function TraitCard({ trait, saving, onWeightChange }) {
               alt={trait.name}
               className="w-full h-full object-cover"
             />
-          ) : loading ? (
-            <div className="w-full h-full animate-pulse bg-zinc-800" />
-          ) : failed ? (
+          ) : status === "failed" ? (
             <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 px-2 text-center">
               {!trait.storage_path ? "No file path" : "Preview unavailable"}
             </div>
+          ) : status === "loading" ? (
+            <div className="w-full h-full animate-pulse bg-zinc-800" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-600 px-2 text-center">
               …
