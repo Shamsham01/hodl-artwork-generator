@@ -601,7 +601,13 @@ async function computeRarity(jobId, userId) {
  * Return a page of generated editions with short-lived signed thumbnail URLs
  * so the UI can show a results gallery without downloading the whole zip.
  */
-async function listJobEditions(jobId, userId, limit = 48, offset = 0) {
+async function listJobEditions(
+  jobId,
+  userId,
+  limit = 48,
+  offset = 0,
+  { latest = false, thumbsOnly = false } = {}
+) {
   const { data: job } = await supabase
     .from("generation_jobs")
     .select("id, projects(owner_id)")
@@ -621,8 +627,8 @@ async function listJobEditions(jobId, userId, limit = 48, offset = 0) {
     .from("generated_editions")
     .select("edition_number, image_path, metadata")
     .eq("job_id", jobId)
-    .order("edition_number")
-    .range(offset, offset + limit - 1);
+    .order("edition_number", { ascending: !latest })
+    .range(latest ? 0 : offset, latest ? limit - 1 : offset + limit - 1);
 
   const toThumbPath = (imagePath) =>
     imagePath.replace("/images/", "/thumbs/").replace(/\.png$/i, ".webp");
@@ -640,9 +646,11 @@ async function listJobEditions(jobId, userId, limit = 48, offset = 0) {
     });
   }
 
-  const missingFull = (editions || [])
-    .filter((e) => !thumbMap[toThumbPath(e.image_path)])
-    .map((e) => e.image_path);
+  const missingFull = thumbsOnly
+    ? []
+    : (editions || [])
+        .filter((e) => !thumbMap[toThumbPath(e.image_path)])
+        .map((e) => e.image_path);
 
   const fullMap = {};
   if (missingFull.length) {
@@ -654,7 +662,10 @@ async function listJobEditions(jobId, userId, limit = 48, offset = 0) {
     });
   }
 
-  const result = (editions || []).map((e) => {
+  const result = (editions || [])
+    .slice()
+    .sort((a, b) => a.edition_number - b.edition_number)
+    .map((e) => {
     const thumb = thumbMap[toThumbPath(e.image_path)];
     const full = fullMap[e.image_path];
     return {

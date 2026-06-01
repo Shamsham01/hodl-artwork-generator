@@ -72,8 +72,12 @@ export const api = {
       body: JSON.stringify({ editionSize }),
     }),
 
-  getEditions: (jobId, { limit = 48, offset = 0 } = {}) =>
-    apiFetch(`/api/jobs/${jobId}/editions?limit=${limit}&offset=${offset}`),
+  getEditions: (jobId, { limit = 48, offset = 0, latest = false, thumbsOnly = false } = {}) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (latest) params.set("latest", "true");
+    if (thumbsOnly) params.set("thumbsOnly", "true");
+    return apiFetch(`/api/jobs/${jobId}/editions?${params}`);
+  },
 
   getJob: (jobId) => apiFetch(`/api/jobs/${jobId}`),
 

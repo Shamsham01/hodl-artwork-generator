@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Play,
   DownloadSimple,
@@ -28,12 +28,12 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
   const [loadingRarity, setLoadingRarity] = useState(false);
 
   const [results, setResults] = useState([]);
-  const [resultsTotal, setResultsTotal] = useState(0);
   const [loadingResults, setLoadingResults] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
-  const PAGE_SIZE = 48;
+  const LIVE_PREVIEW_LIMIT = 10;
+  const livePreview = job?.status === "running" || job?.status === "queued";
 
   useEffect(() => {
     if (project?.edition_size) setEditionSize(project.edition_size);
@@ -116,7 +116,6 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
         : await api.generate(projectId, effectiveSize);
       setJob(result.job);
       setResults([]);
-      setResultsTotal(0);
       onUpdate?.();
     } catch (err) {
       setError(err.message);
@@ -172,56 +171,33 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     setLoadingRarity(false);
   }
 
-  // Load the next page of editions and APPEND only ones we don't already have.
-  // We never re-download images already shown — re-fetching the same full-res
-  // PNGs on every progress tick was the main source of Supabase egress.
-  async function fetchMoreResults() {
+  // During generation only: fetch the 10 most recent WebP thumbs (no full PNGs).
+  async function fetchLivePreview() {
     if (!job?.id) return;
     setLoadingResults(true);
     try {
-      const { editions, total } = await api.getEditions(job.id, {
-        limit: PAGE_SIZE,
-        offset: loadedCountRef.current,
+      const { editions } = await api.getEditions(job.id, {
+        limit: LIVE_PREVIEW_LIMIT,
+        latest: true,
+        thumbsOnly: true,
       });
-      setResultsTotal(total);
-      if (editions.length) {
-        setResults((prev) => {
-          const seen = new Set(prev.map((r) => r.edition));
-          const next = [...prev];
-          for (const e of editions) if (!seen.has(e.edition)) next.push(e);
-          return next;
-        });
-      }
+      setResults(editions);
     } catch {
       // ignore transient errors while generating
     }
     setLoadingResults(false);
   }
 
-  // Live results: incrementally pull only newly-produced editions as progress
-  // advances (each image is downloaded exactly once). Throttled to every 15s
-  // during generation to limit cached egress from the gallery CDN.
-  const lastFetchRef = useRef(0);
-  const loadedCountRef = useRef(0);
   useEffect(() => {
-    loadedCountRef.current = results.length;
-  }, [results.length]);
-
-  useEffect(() => {
-    if (!job?.id) return;
-    const active =
-      job.status === "complete" ||
-      job.status === "running" ||
-      job.status === "queued";
-    if (!active) return;
-    const now = Date.now();
-    const interval = job.status === "complete" ? 5000 : 15000;
-    if (job.status === "complete" || now - lastFetchRef.current > interval) {
-      lastFetchRef.current = now;
-      fetchMoreResults();
+    if (!job?.id || !livePreview) {
+      if (job?.status === "complete") setResults([]);
+      return;
     }
+    fetchLivePreview();
+    const id = setInterval(fetchLivePreview, 15000);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job?.id, job?.status, job?.progress]);
+  }, [job?.id, job?.status, job?.progress, livePreview]);
 
   async function handleRegenerate() {
     setRegenerating(true);
@@ -234,7 +210,6 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
       const result = await api.regenerate(projectId, effectiveSize);
       setJob(result.job);
       setResults([]);
-      setResultsTotal(0);
       setRarity(null);
       setConfirmRegen(false);
       onUpdate?.();
@@ -323,7 +298,7 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                 </button>
               </div>
               <p className="text-[11px] text-zinc-600">
-                PNGs and JSON metadata packaged together in one folder.
+                Full-resolution PNGs and JSON metadata packaged in one zip — browse locally after download.
               </p>
             </div>
           ) : (
@@ -352,68 +327,46 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
         </div>
       </div>
 
-      {job && (job.status === "running" || job.status === "complete") && (
+      {livePreview && (
         <div className="bezel-outer">
           <div className="bezel-inner p-8 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white">
-                Results{" "}
-                {resultsTotal > 0 && (
-                  <span className="text-zinc-500 font-normal">({resultsTotal})</span>
-                )}
-              </h3>
-              {job.status === "running" && (
-                <span className="text-xs text-zinc-500">Updating live…</span>
-              )}
+            <div>
+              <h3 className="text-sm font-semibold text-white">Live preview</h3>
+              <p className="text-xs text-zinc-500 mt-1">
+                Latest {LIVE_PREVIEW_LIMIT} editions while generating — small WebP previews only.
+                Download the full collection when complete to browse every piece locally.
+              </p>
             </div>
 
             {results.length === 0 ? (
               <p className="text-sm text-zinc-600 py-8 text-center">
                 {loadingResults
                   ? "Loading preview…"
-                  : "Images will appear here as they are generated."}
+                  : "Previews appear here as editions are rendered."}
               </p>
             ) : (
-              <>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                  {results.map((r) => (
-                    <div
-                      key={r.edition}
-                      className="group relative aspect-square rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800"
-                    >
-                      {r.url ? (
-                        <img
-                          src={r.url}
-                          alt={r.name}
-                          loading="lazy"
-                          onError={(e) => {
-                            if (r.fullUrl && e.currentTarget.src !== r.fullUrl) {
-                              e.currentTarget.src = r.fullUrl;
-                            }
-                          }}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full animate-pulse" />
-                      )}
-                      <span className="absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-zinc-200">
-                        #{r.edition}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {results.length < resultsTotal && (
-                  <button
-                    onClick={fetchMoreResults}
-                    disabled={loadingResults}
-                    className="mx-auto block text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+              <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                {results.map((r) => (
+                  <div
+                    key={r.edition}
+                    className="group relative aspect-square rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800"
                   >
-                    {loadingResults
-                      ? "Loading…"
-                      : `Load more (${resultsTotal - results.length} left)`}
-                  </button>
-                )}
-              </>
+                    {r.url ? (
+                      <img
+                        src={r.url}
+                        alt={r.name}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full animate-pulse" />
+                    )}
+                    <span className="absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-zinc-200">
+                      #{r.edition}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

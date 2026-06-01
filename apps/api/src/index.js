@@ -290,7 +290,12 @@ app.get("/api/jobs/:id/editions", authMiddleware, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 48, 100);
     const offset = parseInt(req.query.offset, 10) || 0;
-    const result = await listJobEditions(req.params.id, req.userId, limit, offset);
+    const latest = req.query.latest === "true";
+    const thumbsOnly = req.query.thumbsOnly === "true";
+    const result = await listJobEditions(req.params.id, req.userId, limit, offset, {
+      latest,
+      thumbsOnly,
+    });
     res.json(result);
   } catch (err) {
     const status = err.message === "Job not found" ? 404 : 500;
