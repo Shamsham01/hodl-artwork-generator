@@ -241,44 +241,42 @@ async function downloadSelectedTraits(layers, traitsByLayerId, selectedTraits = 
 
   const traitsByLayer = {};
 
-  await Promise.all(
-    layers.map(async (layer) => {
-      const layerTraits = traitsByLayerId[layer.id] || [];
-      if (!layerTraits.length) {
-        traitsByLayer[layer.name] = [];
-        return;
-      }
+  for (const layer of layers) {
+    const layerTraits = traitsByLayerId[layer.id] || [];
+    if (!layerTraits.length) {
+      traitsByLayer[layer.name] = [];
+      continue;
+    }
 
-      const wantedName = selectedTraits[layer.name];
-      const trait =
-        layerTraits.find((t) => t.name === wantedName) || layerTraits[0];
+    const wantedName = selectedTraits[layer.name];
+    const trait =
+      layerTraits.find((t) => t.name === wantedName) || layerTraits[0];
 
-      const layerPath = path.join(layersDir, layer.name);
-      fs.mkdirSync(layerPath, { recursive: true });
-      const localPath = path.join(layerPath, trait.filename);
+    const layerPath = path.join(layersDir, layer.name);
+    fs.mkdirSync(layerPath, { recursive: true });
+    const localPath = path.join(layerPath, trait.filename);
 
-      const { data, error } = await supabase.storage
-        .from("layer-assets")
-        .download(trait.storage_path);
+    const { data, error } = await supabase.storage
+      .from("layer-assets")
+      .download(trait.storage_path);
 
-      if (error) {
-        throw new Error(`Failed to download ${trait.storage_path}: ${error.message}`);
-      }
+    if (error) {
+      throw new Error(`Failed to download ${trait.storage_path}: ${error.message}`);
+    }
 
-      const buffer = Buffer.from(await data.arrayBuffer());
-      fs.writeFileSync(localPath, buffer);
+    const buffer = Buffer.from(await data.arrayBuffer());
+    fs.writeFileSync(localPath, buffer);
 
-      traitsByLayer[layer.name] = [
-        {
-          id: 0,
-          name: trait.name,
-          filename: trait.filename,
-          path: localPath,
-          weight: trait.weight,
-        },
-      ];
-    })
-  );
+    traitsByLayer[layer.name] = [
+      {
+        id: 0,
+        name: trait.name,
+        filename: trait.filename,
+        path: localPath,
+        weight: trait.weight,
+      },
+    ];
+  }
 
   return { tmpDir, layersDir, traitsByLayer };
 }

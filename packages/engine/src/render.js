@@ -127,23 +127,29 @@ const createRenderer = (config, layersDir, traitsByLayer = null) => {
 
   const renderToBuffer = async (dna, layers) => {
     const results = constructLayerToDna(dna, layers);
-    const loadedElements = await Promise.all(results.map(loadLayerImg));
 
     ctx.clearRect(0, 0, format.width, format.height);
     if (background.generate) {
       drawBackground();
     }
 
-    const excludedLayers = getExcludedLayerNames(loadedElements);
-    const layersToRender = loadedElements.filter(
+    const excludedLayers = getExcludedLayerNames(
+      results.map((ro) => ({ layer: ro.layer }))
+    );
+    const layersToRender = results.filter(
       (ro) => !excludedLayers.has(ro.layer.layerKey || ro.layer.name)
     );
 
-    layersToRender.forEach((renderObject, index) => {
+    // Load and draw one layer at a time so large stacks (20+ layers) don't
+    // decode every trait image into memory at once — a common OOM on 512 MB hosts.
+    const loadedElements = [];
+    for (let index = 0; index < layersToRender.length; index++) {
+      const renderObject = await loadLayerImg(layersToRender[index]);
       drawElement(renderObject, index);
-    });
+      loadedElements.push(renderObject);
+    }
 
-    const attributes = buildAttributes(layersToRender);
+    const attributes = buildAttributes(loadedElements);
     return {
       buffer: canvas.toBuffer("image/png"),
       attributes,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Shuffle, Eye, Stack } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 import { api } from "../lib/api";
@@ -25,6 +25,7 @@ export default function PreviewPanel({ projectId }) {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const previewInFlight = useRef(false);
 
   useEffect(() => {
     loadLayers();
@@ -99,6 +100,8 @@ export default function PreviewPanel({ projectId }) {
   }
 
   async function generatePreview() {
+    if (previewInFlight.current) return;
+    previewInFlight.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -109,8 +112,14 @@ export default function PreviewPanel({ projectId }) {
       );
       setPreview(result);
     } catch (err) {
-      setError(err.message);
+      const msg = err.message || "Preview failed";
+      setError(
+        msg.includes("fetch") || msg === "Failed to fetch"
+          ? "Preview timed out or the server restarted — wait a moment and try again."
+          : msg
+      );
     }
+    previewInFlight.current = false;
     setLoading(false);
   }
 

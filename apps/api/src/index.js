@@ -17,39 +17,87 @@ const { parseTraitFilename } = require("@basturds/engine");
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const DEFAULT_ORIGINS = [
+  "http://localhost:5173",
+  "https://hodl-artwork-generator.netlify.app",
+];
+
+function acceptedOrigins() {
+  const fromEnv = (process.env.FRONTEND_URL || "http://localhost:5173")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  return [...new Set([...DEFAULT_ORIGINS, ...fromEnv])];
+}
+
+function applyCorsHeaders(req, res) {
+  const origin = req.headers.origin;
+  const allowed = acceptedOrigins();
+  const match =
+    origin && allowed.some((o) => origin === o || origin.startsWith(o))
+      ? origin
+      : allowed[0];
+  if (match) {
+    res.setHeader("Access-Control-Allow-Origin", match);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Vary", "Origin");
+  }
+}
+
 // Render (and most PaaS) sit behind a reverse proxy that sets X-Forwarded-For.
 // Trust the first hop so express-rate-limit can read the real client IP instead
 // of throwing ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on every request.
 app.set("trust proxy", 1);
 
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173").split(",");
-
 app.use(
   cors({
-    origin: (origin, cb) => {
-      if (!origin || allowedOrigins.some((o) => origin.startsWith(o.trim()))) {
-        cb(null, true);
+    origin(origin, cb) {
+      const allowed = acceptedOrigins();
+      if (!origin || allowed.some((o) => origin === o || origin.startsWith(o))) {
+        cb(null, origin || allowed[0]);
       } else {
-        cb(null, true);
+        cb(null, allowed[0]);
       }
     },
     credentials: true,
+    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+app.options(/.*/, cors());
+
 app.use(express.json({ limit: "10mb" }));
+
+function rateLimitHandler(req, res, _next, options) {
+  applyCorsHeaders(req, res);
+  res.status(options.statusCode).json({
+    error: "Too many requests — please wait a moment and try again.",
+  });
+}
 
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 120,
   standardHeaders: true,
+  skip: (req) => req.method === "OPTIONS" || req.path === "/preview",
+  handler: rateLimitHandler,
 });
+
+const previewLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  skip: (req) => req.method === "OPTIONS",
+  handler: rateLimitHandler,
+});
+
 app.use("/api", limiter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-app.post("/api/preview", authMiddleware, async (req, res) => {
+app.post("/api/preview", previewLimiter, authMiddleware, async (req, res) => {
   try {
     const { projectId, selectedTraits, configurationId } = req.body;
     if (!projectId) {
@@ -308,6 +356,16 @@ app.post("/api/projects/:id/sync-traits", authMiddleware, async (req, res) => {
     res.json({ layers: Object.values(layerMap), traits });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Always attach CORS headers on unexpected errors (rate-limit already uses
+// rateLimitHandler; this covers everything else).
+app.use((err, req, res, _next) => {
+  applyCorsHeaders(req, res);
+  console.error("Unhandled route error:", err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 });
 

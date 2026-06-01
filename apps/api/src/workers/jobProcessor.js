@@ -15,6 +15,17 @@ const MAX_CONCURRENT = parseInt(process.env.MAX_CONCURRENT_JOBS || "3", 10);
 const MAX_EDITION_SIZE = parseInt(process.env.MAX_EDITION_SIZE || "10000", 10);
 let activeJobs = 0;
 
+// Serialize preview renders on this instance. Parallel previews on a 512 MB
+// Render box OOM-kill the process; the browser then reports a CORS error because
+// the dead connection has no Access-Control-Allow-Origin header.
+let previewQueue = Promise.resolve();
+
+function enqueuePreview(work) {
+  const run = previewQueue.then(work);
+  previewQueue = run.catch(() => {});
+  return run;
+}
+
 async function loadResumeState(jobId) {
   const { data: editions } = await supabase
     .from("generated_editions")
@@ -278,6 +289,7 @@ function startWorker() {
 }
 
 async function createPreview(projectId, userId, selectedTraits, configurationId = null) {
+  return enqueuePreview(async () => {
   const { layers, traitsByLayerId, config, allLayersOrder, layerConfigRecords } =
     await loadProjectConfig(projectId, userId);
 
@@ -332,6 +344,7 @@ async function createPreview(projectId, userId, selectedTraits, configurationId 
   } finally {
     cleanupTempDir(assets.tmpDir);
   }
+  });
 }
 
 function sanitizeFolderName(name) {
