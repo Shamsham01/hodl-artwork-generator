@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { api } from "../lib/api";
+import { loadLayerPreviewUrls, signTraitFullUrl } from "../lib/traitPreviews";
 
 export default function TraitMatrix({ projectId }) {
   const [layers, setLayers] = useState([]);
@@ -85,8 +86,8 @@ export default function TraitMatrix({ projectId }) {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <p className="text-xs text-zinc-500 max-w-lg">
-          Previews load per layer as you scroll — small WebP thumbs, not full trait files,
-          to keep Supabase egress low.
+          Previews load per layer as you scroll — WebP thumbs when available, otherwise
+          a one-time full PNG fallback while thumbs are generated.
         </p>
         <button
           onClick={exportCsv}
@@ -141,25 +142,15 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
     setLoadingPreviews(true);
     setPreviewError(false);
 
-    api
-      .getTraitPreviews(projectId, layer.id, { offset: 0, limit: 40 })
-      .then(async (first) => {
+    loadLayerPreviewUrls(layer.traits, {
+      batchSize: 25,
+      onProgress: (urls) => {
+        if (active && gen === fetchGen.current) setPreviewUrls({ ...urls });
+      },
+    })
+      .then((urls) => {
         if (!active || gen !== fetchGen.current) return;
-        const merged = { ...(first.urls || {}) };
-        setPreviewUrls(merged);
-
-        let offset = first.limit || 40;
-        while (first.hasMore && active && gen === fetchGen.current) {
-          const page = await api.getTraitPreviews(projectId, layer.id, {
-            offset,
-            limit: 40,
-          });
-          if (!active || gen !== fetchGen.current) return;
-          Object.assign(merged, page.urls || {});
-          setPreviewUrls({ ...merged });
-          if (!page.hasMore) break;
-          offset += page.limit || 40;
-        }
+        setPreviewUrls(urls);
       })
       .catch(() => {
         if (!active || gen !== fetchGen.current) return;
@@ -170,10 +161,13 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
         if (active && gen === fetchGen.current) setLoadingPreviews(false);
       });
 
+    // Ask API to build missing WebP thumbs in storage for future visits (non-blocking).
+    api.getTraitPreviews(projectId, layer.id, { offset: 0, limit: 40 }).catch(() => {});
+
     return () => {
       active = false;
     };
-  }, [visible, projectId, layer.id, previewUrls, loadingPreviews]);
+  }, [visible, projectId, layer.id, layer.traits, previewUrls, loadingPreviews]);
 
   function retryPreviews() {
     fetchGen.current++;
@@ -208,7 +202,7 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
             key={trait.id}
             trait={trait}
             imgUrl={previewUrls?.[trait.id]}
-            loadingPreview={visible && loadingPreviews}
+            loadingPreview={visible && loadingPreviews && !previewUrls?.[trait.id]}
             previewFailed={previewUrls !== null && !previewUrls[trait.id] && !loadingPreviews}
             saving={saving === trait.id}
             onWeightChange={(w) => onWeightChange(trait.id, w)}
@@ -220,20 +214,47 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
 }
 
 function TraitCard({ trait, imgUrl, loadingPreview, previewFailed, saving, onWeightChange }) {
+  const [src, setSrc] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const triedFull = useRef(false);
+
+  useEffect(() => {
+    triedFull.current = false;
+    setFailed(false);
+    setSrc(imgUrl || null);
+  }, [imgUrl, trait.storage_path]);
+
+  async function handleImgError() {
+    if (triedFull.current || !trait.storage_path) {
+      setFailed(true);
+      return;
+    }
+    triedFull.current = true;
+    const fullUrl = await signTraitFullUrl(trait.storage_path);
+    if (fullUrl) {
+      setSrc(fullUrl);
+    } else {
+      setFailed(true);
+    }
+  }
+
+  const showImage = src && !failed;
+
   return (
     <div className="bezel-outer">
       <div className="bezel-inner p-2">
         <div className="aspect-square rounded-lg overflow-hidden bg-zinc-900 mb-2">
-          {imgUrl ? (
+          {showImage ? (
             <img
-              src={imgUrl}
+              src={src}
               alt={trait.name}
               loading="lazy"
+              onError={handleImgError}
               className="w-full h-full object-cover"
             />
-          ) : loadingPreview ? (
+          ) : loadingPreview && !previewFailed && !failed ? (
             <div className="w-full h-full animate-pulse bg-zinc-800" />
-          ) : previewFailed ? (
+          ) : previewFailed || failed ? (
             <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 px-2 text-center">
               Preview unavailable
             </div>
