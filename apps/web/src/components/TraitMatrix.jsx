@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { api } from "../lib/api";
-import { loadLayerPreviewUrls, signTraitFullUrl } from "../lib/traitPreviews";
+import { fetchTraitPreviewBlobUrl, revokeBlobUrl } from "../lib/traitPreviews";
 
 export default function TraitMatrix({ projectId }) {
   const [layers, setLayers] = useState([]);
@@ -68,6 +67,7 @@ export default function TraitMatrix({ projectId }) {
     a.href = url;
     a.download = "trait-matrix.csv";
     a.click();
+    URL.revokeObjectURL(url);
   }
 
   if (loading) {
@@ -86,8 +86,8 @@ export default function TraitMatrix({ projectId }) {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <p className="text-xs text-zinc-500 max-w-lg">
-          Previews load per layer as you scroll — WebP thumbs when available, otherwise
-          a one-time full PNG fallback while thumbs are generated.
+          Previews load as you scroll — WebP thumbs (~3 KB) when available, full PNG
+          only as fallback. No SQL changes needed; thumbs live in Storage beside your layers.
         </p>
         <button
           onClick={exportCsv}
@@ -100,7 +100,6 @@ export default function TraitMatrix({ projectId }) {
       {layers.map((layer) => (
         <LayerSection
           key={layer.id}
-          projectId={projectId}
           layer={layer}
           saving={saving}
           onWeightChange={updateWeight}
@@ -110,13 +109,33 @@ export default function TraitMatrix({ projectId }) {
   );
 }
 
-function LayerSection({ projectId, layer, saving, onWeightChange }) {
+function LayerSection({ layer, saving, onWeightChange }) {
+  return (
+    <section>
+      <h3 className="text-lg font-semibold text-white mb-1">{layer.name}</h3>
+      <p className="text-xs text-zinc-500 mb-4">
+        {layer.traits.length} traits · total weight {layer.totalWeight}
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        {layer.traits.map((trait) => (
+          <TraitCard
+            key={trait.id}
+            trait={trait}
+            saving={saving === trait.id}
+            onWeightChange={(w) => onWeightChange(trait.id, w)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TraitCard({ trait, saving, onWeightChange }) {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
-  const [previewUrls, setPreviewUrls] = useState(null);
-  const [loadingPreviews, setLoadingPreviews] = useState(false);
-  const [previewError, setPreviewError] = useState(false);
-  const fetchGen = useRef(0);
+  const [src, setSrc] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -128,139 +147,62 @@ function LayerSection({ projectId, layer, saving, onWeightChange }) {
           observer.disconnect();
         }
       },
-      { rootMargin: "200px" }
+      { rootMargin: "120px" }
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!visible || previewUrls !== null || loadingPreviews) return;
+    if (!visible || !trait.storage_path || src || loading || failed) return;
 
-    const gen = ++fetchGen.current;
     let active = true;
-    setLoadingPreviews(true);
-    setPreviewError(false);
+    setLoading(true);
 
-    loadLayerPreviewUrls(layer.traits, {
-      batchSize: 25,
-      onProgress: (urls) => {
-        if (active && gen === fetchGen.current) setPreviewUrls({ ...urls });
-      },
-    })
-      .then((urls) => {
-        if (!active || gen !== fetchGen.current) return;
-        setPreviewUrls(urls);
+    fetchTraitPreviewBlobUrl(trait.storage_path)
+      .then((blobUrl) => {
+        if (!active) {
+          revokeBlobUrl(blobUrl);
+          return;
+        }
+        if (blobUrl) setSrc(blobUrl);
+        else setFailed(true);
       })
       .catch(() => {
-        if (!active || gen !== fetchGen.current) return;
-        setPreviewError(true);
-        setPreviewUrls(null);
+        if (active) setFailed(true);
       })
       .finally(() => {
-        if (active && gen === fetchGen.current) setLoadingPreviews(false);
+        if (active) setLoading(false);
       });
-
-    // Ask API to build missing WebP thumbs in storage for future visits (non-blocking).
-    api.getTraitPreviews(projectId, layer.id, { offset: 0, limit: 40 }).catch(() => {});
 
     return () => {
       active = false;
     };
-  }, [visible, projectId, layer.id, layer.traits, previewUrls, loadingPreviews]);
-
-  function retryPreviews() {
-    fetchGen.current++;
-    setPreviewUrls(null);
-    setPreviewError(false);
-  }
-
-  const loadedCount =
-    previewUrls && Object.values(previewUrls).filter(Boolean).length;
-
-  return (
-    <section ref={ref}>
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <h3 className="text-lg font-semibold text-white">{layer.name}</h3>
-        {previewError && (
-          <button
-            type="button"
-            onClick={retryPreviews}
-            className="text-xs text-emerald-400 hover:text-emerald-300 shrink-0"
-          >
-            Retry previews
-          </button>
-        )}
-      </div>
-      <p className="text-xs text-zinc-500 mb-4">
-        {layer.traits.length} traits · total weight {layer.totalWeight}
-        {loadedCount > 0 && ` · ${loadedCount} previews loaded`}
-      </p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        {layer.traits.map((trait) => (
-          <TraitCard
-            key={trait.id}
-            trait={trait}
-            imgUrl={previewUrls?.[trait.id]}
-            loadingPreview={visible && loadingPreviews && !previewUrls?.[trait.id]}
-            previewFailed={previewUrls !== null && !previewUrls[trait.id] && !loadingPreviews}
-            saving={saving === trait.id}
-            onWeightChange={(w) => onWeightChange(trait.id, w)}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TraitCard({ trait, imgUrl, loadingPreview, previewFailed, saving, onWeightChange }) {
-  const [src, setSrc] = useState(null);
-  const [failed, setFailed] = useState(false);
-  const triedFull = useRef(false);
+  }, [visible, trait.storage_path, src, loading, failed]);
 
   useEffect(() => {
-    triedFull.current = false;
-    setFailed(false);
-    setSrc(imgUrl || null);
-  }, [imgUrl, trait.storage_path]);
-
-  async function handleImgError() {
-    if (triedFull.current || !trait.storage_path) {
-      setFailed(true);
-      return;
-    }
-    triedFull.current = true;
-    const fullUrl = await signTraitFullUrl(trait.storage_path);
-    if (fullUrl) {
-      setSrc(fullUrl);
-    } else {
-      setFailed(true);
-    }
-  }
-
-  const showImage = src && !failed;
+    return () => revokeBlobUrl(src);
+  }, [src]);
 
   return (
-    <div className="bezel-outer">
+    <div ref={ref} className="bezel-outer">
       <div className="bezel-inner p-2">
         <div className="aspect-square rounded-lg overflow-hidden bg-zinc-900 mb-2">
-          {showImage ? (
+          {src ? (
             <img
               src={src}
               alt={trait.name}
-              loading="lazy"
-              onError={handleImgError}
               className="w-full h-full object-cover"
             />
-          ) : loadingPreview && !previewFailed && !failed ? (
+          ) : loading ? (
             <div className="w-full h-full animate-pulse bg-zinc-800" />
-          ) : previewFailed || failed ? (
+          ) : failed ? (
             <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 px-2 text-center">
-              Preview unavailable
+              {!trait.storage_path ? "No file path" : "Preview unavailable"}
             </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-600 px-2 text-center">
-              Scroll to load preview
+              …
             </div>
           )}
         </div>
