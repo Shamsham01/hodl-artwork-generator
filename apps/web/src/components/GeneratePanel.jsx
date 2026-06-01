@@ -199,7 +199,8 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
   }
 
   // Live results: incrementally pull only newly-produced editions as progress
-  // advances (each image is downloaded exactly once). Throttled to every 5s.
+  // advances (each image is downloaded exactly once). Throttled to every 15s
+  // during generation to limit cached egress from the gallery CDN.
   const lastFetchRef = useRef(0);
   const loadedCountRef = useRef(0);
   useEffect(() => {
@@ -214,7 +215,8 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
       job.status === "queued";
     if (!active) return;
     const now = Date.now();
-    if (job.status === "complete" || now - lastFetchRef.current > 5000) {
+    const interval = job.status === "complete" ? 5000 : 15000;
+    if (job.status === "complete" || now - lastFetchRef.current > interval) {
       lastFetchRef.current = now;
       fetchMoreResults();
     }

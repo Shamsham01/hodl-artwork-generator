@@ -114,27 +114,12 @@ export default function TraitMatrix({ projectId }) {
 }
 
 function TraitCard({ trait, saving, onWeightChange }) {
-  const [imgUrl, setImgUrl] = useState(null);
-
-  useEffect(() => {
-    supabase.storage
-      .from("layer-assets")
-      .createSignedUrl(trait.storage_path, 3600)
-      .then(({ data }) => setImgUrl(data?.signedUrl));
-  }, [trait.storage_path]);
-
   return (
     <div className="bezel-outer">
-      <div className="bezel-inner p-2">
-        <div className="aspect-square rounded-lg overflow-hidden bg-zinc-900 mb-2">
-          {imgUrl ? (
-            <img src={imgUrl} alt={trait.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full animate-pulse bg-zinc-800" />
-          )}
-        </div>
+      <div className="bezel-inner p-3">
         <p className="text-xs font-medium text-white truncate">{trait.name}</p>
-        <div className="flex items-center gap-1 mt-1">
+        <p className="text-[10px] text-zinc-600 truncate mt-0.5">{trait.filename}</p>
+        <div className="flex items-center gap-1 mt-2">
           <input
             type="number"
             min="1"

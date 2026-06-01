@@ -10,10 +10,14 @@ const {
   downloadSelectedTraits,
   cleanupTempDir,
   cleanupStaleTempDirs,
+  filterLayersForJob,
 } = require("../services/projectService");
 
 const MAX_CONCURRENT = parseInt(process.env.MAX_CONCURRENT_JOBS || "3", 10);
 const MAX_EDITION_SIZE = parseInt(process.env.MAX_EDITION_SIZE || "10000", 10);
+// Long TTL so gallery URLs stay stable and hit the Supabase CDN cache instead
+// of re-downloading the same thumb with a new signed token every poll.
+const SIGNED_URL_TTL = parseInt(process.env.SIGNED_URL_TTL || "604800", 10);
 let activeJobs = 0;
 
 // Serialize preview renders on this instance. Parallel previews on a 512 MB
@@ -80,10 +84,16 @@ async function processJob(jobId) {
       config.layerConfigurations[0].growEditionSizeTo = job.edition_size;
     }
 
-    const assets = await downloadProjectAssets(
-      project,
+    const { layers: jobLayers, traitsByLayerId: jobTraits } = filterLayersForJob(
       layers,
       traitsByLayerId,
+      config
+    );
+
+    const assets = await downloadProjectAssets(
+      project,
+      jobLayers,
+      jobTraits,
       job.projects.owner_id
     );
 
@@ -619,27 +629,22 @@ async function listJobEditions(jobId, userId, limit = 48, offset = 0) {
   const imagePaths = (editions || []).map((e) => e.image_path);
   const thumbPaths = imagePaths.map(toThumbPath);
 
-  const urlMap = {};
   const thumbMap = {};
-  if (imagePaths.length) {
-    const [{ data: signedFull }, { data: signedThumbs }] = await Promise.all([
-      supabase.storage.from("generations").createSignedUrls(imagePaths, 3600),
-      supabase.storage.from("generations").createSignedUrls(thumbPaths, 3600),
-    ]);
-    (signedFull || []).forEach((s) => {
-      if (s.path && s.signedUrl) urlMap[s.path] = s.signedUrl;
-    });
+  if (thumbPaths.length) {
+    const { data: signedThumbs } = await supabase.storage
+      .from("generations")
+      .createSignedUrls(thumbPaths, SIGNED_URL_TTL);
     (signedThumbs || []).forEach((s) => {
       if (s.path && s.signedUrl) thumbMap[s.path] = s.signedUrl;
     });
   }
 
-  // Serve the lightweight thumbnail in the gallery; expose the full-res URL as
-  // a fallback for older jobs generated before thumbnails existed.
+  // Serve the lightweight thumbnail in the gallery. Full-res PNGs are only in
+  // the zip download — signing them here doubled egress for no UI benefit.
   const result = (editions || []).map((e) => ({
     edition: e.edition_number,
-    url: thumbMap[toThumbPath(e.image_path)] || urlMap[e.image_path] || null,
-    fullUrl: urlMap[e.image_path] || null,
+    url: thumbMap[toThumbPath(e.image_path)] || null,
+    fullUrl: null,
     name: e.metadata?.name || `#${e.edition_number}`,
     attributes: e.metadata?.attributes || [],
   }));

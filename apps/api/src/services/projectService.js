@@ -4,7 +4,32 @@ const os = require("os");
 const crypto = require("crypto");
 const { supabase } = require("../lib/supabase");
 
-const ASSET_CACHE_ROOT = path.join(os.tmpdir(), "basturds-cache");
+// Mount a Render persistent disk (e.g. /var/data) and set ASSET_CACHE_DIR so
+// trait downloads survive restarts — each re-download of 476 traits blows egress.
+const ASSET_CACHE_ROOT =
+  process.env.ASSET_CACHE_DIR || path.join(os.tmpdir(), "basturds-cache");
+
+/** Layer names referenced by any character configuration in the engine config. */
+function layerNamesFromConfig(config) {
+  const names = new Set();
+  for (const lc of config.layerConfigurations || []) {
+    for (const lo of lc.layersOrder || []) {
+      names.add(typeof lo === "string" ? lo : lo.name);
+    }
+  }
+  return names;
+}
+
+function filterLayersForJob(layers, traitsByLayerId, config) {
+  const names = layerNamesFromConfig(config);
+  if (!names.size) return { layers, traitsByLayerId };
+  const jobLayers = layers.filter((l) => names.has(l.name));
+  const jobTraits = {};
+  for (const l of jobLayers) {
+    jobTraits[l.id] = traitsByLayerId[l.id] || [];
+  }
+  return { layers: jobLayers, traitsByLayerId: jobTraits };
+}
 
 // A short fingerprint of a project's trait set. Changes whenever traits are
 // added, removed or renamed (which changes the image files we must download).
@@ -181,15 +206,11 @@ async function downloadProjectAssets(project, layers, traitsByLayerId, userId) {
   const projectDir = path.join(ASSET_CACHE_ROOT, String(project.id));
   const layersDir = path.join(projectDir, version);
   const marker = path.join(layersDir, ".complete");
-  const cached = fs.existsSync(marker);
-
-  if (!cached && fs.existsSync(layersDir)) {
-    // Remove any partial download from a previous interrupted run.
-    fs.rmSync(layersDir, { recursive: true, force: true });
-  }
   fs.mkdirSync(layersDir, { recursive: true });
 
   const traitsByLayer = {};
+  let downloaded = 0;
+  let skipped = 0;
 
   for (const layer of layers) {
     const layerPath = path.join(layersDir, layer.name);
@@ -201,7 +222,9 @@ async function downloadProjectAssets(project, layers, traitsByLayerId, userId) {
       const trait = layerTraits[i];
       const localPath = path.join(layerPath, trait.filename);
 
-      if (!cached || !fs.existsSync(localPath)) {
+      if (fs.existsSync(localPath)) {
+        skipped++;
+      } else {
         const { data, error } = await supabase.storage
           .from("layer-assets")
           .download(trait.storage_path);
@@ -213,6 +236,7 @@ async function downloadProjectAssets(project, layers, traitsByLayerId, userId) {
 
         const buffer = Buffer.from(await data.arrayBuffer());
         fs.writeFileSync(localPath, buffer);
+        downloaded++;
       }
 
       traitsByLayer[layer.name].push({
@@ -225,7 +249,15 @@ async function downloadProjectAssets(project, layers, traitsByLayerId, userId) {
     }
   }
 
-  if (!cached) {
+  const cached = skipped > 0 && downloaded === 0;
+  if (downloaded === 0 && skipped > 0) {
+    // all files already on disk
+  } else if (downloaded > 0) {
+    console.log(
+      `Asset cache: ${downloaded} downloaded, ${skipped} reused (${layersDir})`
+    );
+  }
+  if (!fs.existsSync(marker) && skipped + downloaded > 0) {
     fs.writeFileSync(marker, new Date().toISOString());
   }
   pruneOldCacheVersions(projectDir, version);
@@ -412,6 +444,7 @@ module.exports = {
   downloadSelectedTraits,
   cleanupTempDir,
   cleanupStaleTempDirs,
+  filterLayersForJob,
   deleteProject,
   clearProjectGenerations,
 };
