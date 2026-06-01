@@ -9,9 +9,11 @@ const {
   updateCollectionUri,
   computeRarity,
   listJobEditions,
+  listTraitPreviews,
   startWorker,
 } = require("./workers/jobProcessor");
 const { deleteProject, clearProjectGenerations } = require("./services/projectService");
+const { ensureTraitThumbs } = require("./services/thumbnails");
 const { parseTraitFilename } = require("@basturds/engine");
 
 const app = express();
@@ -296,6 +298,20 @@ app.get("/api/jobs/:id/editions", authMiddleware, async (req, res) => {
   }
 });
 
+app.get("/api/projects/:id/layers/:layerId/trait-previews", authMiddleware, async (req, res) => {
+  try {
+    const result = await listTraitPreviews(
+      req.params.id,
+      req.params.layerId,
+      req.userId
+    );
+    res.json(result);
+  } catch (err) {
+    const status = err.message === "Project not found" ? 404 : 500;
+    res.status(status).json({ error: err.message });
+  }
+});
+
 app.post("/api/projects/:id/sync-traits", authMiddleware, async (req, res) => {
   try {
     const projectId = req.params.id;
@@ -353,6 +369,11 @@ app.post("/api/projects/:id/sync-traits", authMiddleware, async (req, res) => {
       .from("projects")
       .update({ status: "ready" })
       .eq("id", projectId);
+
+    // Build WebP thumbs in the background so the Traits page never pulls full PNGs.
+    ensureTraitThumbs(uploadedTraits.map((t) => t.storagePath)).catch((err) =>
+      console.error("Trait thumb generation:", err)
+    );
 
     res.json({ layers: Object.values(layerMap), traits });
   } catch (err) {

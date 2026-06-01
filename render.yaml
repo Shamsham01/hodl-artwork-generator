@@ -25,7 +25,7 @@ services:
       - key: MAX_CONCURRENT_JOBS
         value: "1"
       # Mount a Render persistent disk and set ASSET_CACHE_DIR in the dashboard
-      # (e.g. /var/data/basturds-cache) so trait files survive restarts.
+      # (e.g. /var/data/hodl-cache) so trait files survive restarts.
       - key: ASSET_CACHE_DIR
         sync: false
       - key: MAX_EDITION_SIZE

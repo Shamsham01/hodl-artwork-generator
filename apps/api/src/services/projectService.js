@@ -7,7 +7,7 @@ const { supabase } = require("../lib/supabase");
 // Mount a Render persistent disk (e.g. /var/data) and set ASSET_CACHE_DIR so
 // trait downloads survive restarts — each re-download of 476 traits blows egress.
 const ASSET_CACHE_ROOT =
-  process.env.ASSET_CACHE_DIR || path.join(os.tmpdir(), "basturds-cache");
+  process.env.ASSET_CACHE_DIR || path.join(os.tmpdir(), "hodl-cache");
 
 /** Layer names referenced by any character configuration in the engine config. */
 function layerNamesFromConfig(config) {
@@ -325,13 +325,13 @@ function cleanupTempDir(tmpDir) {
 /**
  * Render evicts instances when /tmp exceeds 2 GB. Crashed jobs often leave
  * basturds-build-* / basturds-prev-* folders behind; wipe them on startup.
- * Keeps basturds-cache (layer assets) so resume after restart is faster.
+ * Keeps hodl-cache (layer assets) so resume after restart is faster.
  */
 function cleanupStaleTempDirs() {
   try {
     const tmp = os.tmpdir();
     for (const entry of fs.readdirSync(tmp)) {
-      if (/^basturds-(build|prev|zip)-/.test(entry)) {
+      if (/^(basturds|hodl)-(build|prev|zip)-/.test(entry)) {
         fs.rmSync(path.join(tmp, entry), { recursive: true, force: true });
       }
     }

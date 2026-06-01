@@ -88,6 +88,9 @@ export const api = {
 
   rarity: (jobId) => apiFetch(`/api/jobs/${jobId}/rarity`),
 
+  getTraitPreviews: (projectId, layerId) =>
+    apiFetch(`/api/projects/${projectId}/layers/${layerId}/trait-previews`),
+
   deleteProject: (projectId) =>
     apiFetch(`/api/projects/${projectId}`, { method: "DELETE" }),
 

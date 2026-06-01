@@ -4,6 +4,7 @@ const os = require("os");
 const archiver = require("archiver");
 const { renderSingle, renderBatch, createThumbnail, filterDNAOptions } = require("@basturds/engine");
 const { supabase } = require("../lib/supabase");
+const { ensureTraitThumb, traitThumbPath } = require("../services/thumbnails");
 const {
   loadProjectConfig,
   downloadProjectAssets,
@@ -639,17 +640,88 @@ async function listJobEditions(jobId, userId, limit = 48, offset = 0) {
     });
   }
 
-  // Serve the lightweight thumbnail in the gallery. Full-res PNGs are only in
-  // the zip download — signing them here doubled egress for no UI benefit.
-  const result = (editions || []).map((e) => ({
-    edition: e.edition_number,
-    url: thumbMap[toThumbPath(e.image_path)] || null,
-    fullUrl: null,
-    name: e.metadata?.name || `#${e.edition_number}`,
-    attributes: e.metadata?.attributes || [],
-  }));
+  const missingFull = (editions || [])
+    .filter((e) => !thumbMap[toThumbPath(e.image_path)])
+    .map((e) => e.image_path);
+
+  const fullMap = {};
+  if (missingFull.length) {
+    const { data: signedFull } = await supabase.storage
+      .from("generations")
+      .createSignedUrls(missingFull, SIGNED_URL_TTL);
+    (signedFull || []).forEach((s) => {
+      if (s.path && s.signedUrl) fullMap[s.path] = s.signedUrl;
+    });
+  }
+
+  const result = (editions || []).map((e) => {
+    const thumb = thumbMap[toThumbPath(e.image_path)];
+    const full = fullMap[e.image_path];
+    return {
+      edition: e.edition_number,
+      url: thumb || full || null,
+      fullUrl: full || null,
+      name: e.metadata?.name || `#${e.edition_number}`,
+      attributes: e.metadata?.attributes || [],
+    };
+  });
 
   return { editions: result, total: count || 0 };
+}
+
+/**
+ * Signed WebP preview URLs for every trait in a layer. Creates missing thumbs
+ * on first request (one-time cost); the Traits page never loads full PNGs.
+ */
+async function listTraitPreviews(projectId, layerId, userId) {
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("owner_id", userId)
+    .single();
+
+  if (!project) throw new Error("Project not found");
+
+  const { data: layer } = await supabase
+    .from("project_layers")
+    .select("id")
+    .eq("id", layerId)
+    .eq("project_id", projectId)
+    .single();
+
+  if (!layer) throw new Error("Layer not found");
+
+  const { data: traits } = await supabase
+    .from("traits")
+    .select("id, storage_path")
+    .eq("layer_id", layerId);
+
+  for (const trait of traits || []) {
+    try {
+      await ensureTraitThumb(trait.storage_path);
+    } catch (err) {
+      console.error(`Trait preview ${trait.storage_path}:`, err.message);
+    }
+  }
+
+  const thumbPaths = (traits || []).map((t) => traitThumbPath(t.storage_path));
+  const urlByPath = {};
+  if (thumbPaths.length) {
+    const { data: signed } = await supabase.storage
+      .from("layer-assets")
+      .createSignedUrls(thumbPaths, SIGNED_URL_TTL);
+    (signed || []).forEach((s) => {
+      if (s.path && s.signedUrl) urlByPath[s.path] = s.signedUrl;
+    });
+  }
+
+  const urls = {};
+  for (const trait of traits || []) {
+    urls[trait.id] = urlByPath[traitThumbPath(trait.storage_path)] || null;
+  }
+
+  return { urls };
 }
 
 module.exports = {
@@ -661,4 +733,5 @@ module.exports = {
   updateCollectionUri,
   computeRarity,
   listJobEditions,
+  listTraitPreviews,
 };
