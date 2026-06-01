@@ -215,10 +215,16 @@ const renderBatch = async (config, options = {}) => {
   const renderer = createRenderer(config, layersDir, traitsByLayer);
   const { createDna } = renderer.restrictionHelpers;
 
-  const imagesDir = path.join(outputDir, "images");
-  const jsonDir = path.join(outputDir, "json");
-  fs.mkdirSync(imagesDir, { recursive: true });
-  fs.mkdirSync(jsonDir, { recursive: true });
+  // When uploading each edition via onEdition (cloud worker), skip writing
+  // PNG/JSON to /tmp — a 1000-edition run can exceed Render's 2 GB /tmp cap.
+  const persistLocally = !onEdition;
+
+  const imagesDir = persistLocally && outputDir ? path.join(outputDir, "images") : null;
+  const jsonDir = persistLocally && outputDir ? path.join(outputDir, "json") : null;
+  if (persistLocally) {
+    fs.mkdirSync(imagesDir, { recursive: true });
+    fs.mkdirSync(jsonDir, { recursive: true });
+  }
 
   const layerConfigurations = config.layerConfigurations;
   // growEditionSizeTo is cumulative across configurations (HashLips behaviour).
@@ -280,11 +286,13 @@ const renderBatch = async (config, options = {}) => {
       );
       const metadata = buildMetadata(config, newDna, edition, attributes);
 
-      fs.writeFileSync(path.join(imagesDir, `${edition}.png`), buffer);
-      fs.writeFileSync(
-        path.join(jsonDir, `${edition}.json`),
-        JSON.stringify(metadata, null, 2)
-      );
+      if (persistLocally) {
+        fs.writeFileSync(path.join(imagesDir, `${edition}.png`), buffer);
+        fs.writeFileSync(
+          path.join(jsonDir, `${edition}.json`),
+          JSON.stringify(metadata, null, 2)
+        );
+      }
 
       dnaList.add(filterDNAOptions(newDna));
       metadataList.push(metadata);
@@ -303,10 +311,12 @@ const renderBatch = async (config, options = {}) => {
     }
   }
 
-  fs.writeFileSync(
-    path.join(jsonDir, "_metadata.json"),
-    JSON.stringify(metadataList, null, 2)
-  );
+  if (persistLocally) {
+    fs.writeFileSync(
+      path.join(jsonDir, "_metadata.json"),
+      JSON.stringify(metadataList, null, 2)
+    );
+  }
 
   return { metadataList, editionCount: completed };
 };

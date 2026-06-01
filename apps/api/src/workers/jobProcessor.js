@@ -9,6 +9,7 @@ const {
   downloadProjectAssets,
   downloadSelectedTraits,
   cleanupTempDir,
+  cleanupStaleTempDirs,
 } = require("../services/projectService");
 
 const MAX_CONCURRENT = parseInt(process.env.MAX_CONCURRENT_JOBS || "3", 10);
@@ -60,7 +61,6 @@ async function processJob(jobId) {
   if (error || !job) return;
 
   activeJobs++;
-  let tmpDir = null;
 
   try {
     await supabase
@@ -76,8 +76,6 @@ async function processJob(jobId) {
     const { project, layers, traitsByLayerId, config, totalEditions } =
       await loadProjectConfig(job.project_id, job.projects.owner_id);
 
-    // Single-configuration (legacy) projects honour the per-job edition size;
-    // multi-configuration projects derive the total from their configs.
     if (config.layerConfigurations.length === 1) {
       config.layerConfigurations[0].growEditionSizeTo = job.edition_size;
     }
@@ -89,10 +87,6 @@ async function processJob(jobId) {
       job.projects.owner_id
     );
 
-    // The asset cache (assets.layersDir) persists across jobs; only this
-    // per-job build directory is ephemeral and cleaned up afterwards.
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "basturds-build-"));
-    const outputDir = path.join(tmpDir, "build");
     const outputPrefix = `${job.projects.owner_id}/${job.project_id}/jobs/${jobId}`;
 
     const resumeState = await loadResumeState(jobId);
@@ -102,9 +96,8 @@ async function processJob(jobId) {
       );
     }
 
-    await renderBatch(config, {
+    const { metadataList } = await renderBatch(config, {
       traitsByLayer: assets.traitsByLayer,
-      outputDir,
       resumeState,
       onProgress: async ({ completed, total, edition }) => {
         await supabase
@@ -159,13 +152,12 @@ async function processJob(jobId) {
       },
     });
 
-    const metadataFile = path.join(outputDir, "json", "_metadata.json");
-    if (fs.existsSync(metadataFile)) {
+    if (metadataList?.length) {
       await supabase.storage
         .from("generations")
         .upload(
           `${outputPrefix}/json/_metadata.json`,
-          fs.readFileSync(metadataFile),
+          JSON.stringify(metadataList, null, 2),
           { contentType: "application/json", upsert: true }
         );
     }
@@ -204,7 +196,6 @@ async function processJob(jobId) {
       .update({ status: "failed" })
       .eq("id", job.project_id);
   } finally {
-    cleanupTempDir(tmpDir);
     activeJobs--;
     pollQueuedJobs();
   }
@@ -280,6 +271,7 @@ async function recoverOrphanedJobs() {
 }
 
 function startWorker() {
+  cleanupStaleTempDirs();
   recoverOrphanedJobs()
     .catch((err) => console.error("Orphaned job recovery failed:", err))
     .finally(() => {

@@ -291,6 +291,24 @@ function cleanupTempDir(tmpDir) {
 }
 
 /**
+ * Render evicts instances when /tmp exceeds 2 GB. Crashed jobs often leave
+ * basturds-build-* / basturds-prev-* folders behind; wipe them on startup.
+ * Keeps basturds-cache (layer assets) so resume after restart is faster.
+ */
+function cleanupStaleTempDirs() {
+  try {
+    const tmp = os.tmpdir();
+    for (const entry of fs.readdirSync(tmp)) {
+      if (/^basturds-(build|prev|zip)-/.test(entry)) {
+        fs.rmSync(path.join(tmp, entry), { recursive: true, force: true });
+      }
+    }
+  } catch {
+    // best-effort
+  }
+}
+
+/**
  * Recursively collect every object path under a storage prefix.
  * Supabase's list() is not recursive, so we walk folders ourselves.
  */
@@ -393,6 +411,7 @@ module.exports = {
   downloadProjectAssets,
   downloadSelectedTraits,
   cleanupTempDir,
+  cleanupStaleTempDirs,
   deleteProject,
   clearProjectGenerations,
 };
