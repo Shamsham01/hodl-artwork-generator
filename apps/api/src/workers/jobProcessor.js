@@ -290,60 +290,97 @@ function startWorker() {
 
 async function createPreview(projectId, userId, selectedTraits, configurationId = null) {
   return enqueuePreview(async () => {
-  const { layers, traitsByLayerId, config, allLayersOrder, layerConfigRecords } =
-    await loadProjectConfig(projectId, userId);
+    const { data: project } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("id", projectId)
+      .eq("owner_id", userId)
+      .single();
 
-  let layersOrder = allLayersOrder;
+    if (!project) throw new Error("Project not found");
 
-  if (configurationId && layerConfigRecords.length) {
-    const record = layerConfigRecords.find((c) => c.id === configurationId);
-    if (record) {
-      const order = Array.isArray(record.layers_order) ? record.layers_order : [];
+    const { data: layers } = await supabase
+      .from("project_layers")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("sort_order");
+
+    const { data: layerConfigRecords } = await supabase
+      .from("layer_configurations")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("sort_order");
+
+    const allLayersOrder = (layers || []).map((l) => ({
+      name: l.name,
+      options: l.options || {},
+    }));
+
+    let layersOrder = allLayersOrder;
+
+    if (configurationId && layerConfigRecords?.length) {
+      const record = layerConfigRecords.find((c) => c.id === configurationId);
+      if (record) {
+        const order = Array.isArray(record.layers_order) ? record.layers_order : [];
+        layersOrder = order
+          .map((entry) => {
+            const name = typeof entry === "string" ? entry : entry.name;
+            const match = (layers || []).find((l) => l.name === name);
+            return match ? { name, options: match.options || {} } : null;
+          })
+          .filter(Boolean);
+      }
+    } else if (layerConfigRecords?.length) {
+      const order = Array.isArray(layerConfigRecords[0].layers_order)
+        ? layerConfigRecords[0].layers_order
+        : [];
       layersOrder = order
         .map((entry) => {
           const name = typeof entry === "string" ? entry : entry.name;
-          const match = layers.find((l) => l.name === name);
+          const match = (layers || []).find((l) => l.name === name);
           return match ? { name, options: match.options || {} } : null;
         })
         .filter(Boolean);
     }
-  } else if (config.layerConfigurations?.[0]?.layersOrder?.length) {
-    layersOrder = config.layerConfigurations[0].layersOrder;
-  }
 
-  config.layerConfigurations = [{ growEditionSizeTo: 1, layersOrder }];
-
-  const orderedLayers = layersOrder
-    .map((lo) => layers.find((l) => l.name === lo.name))
-    .filter(Boolean);
-
-  const filteredSelections = {};
-  for (const { name } of layersOrder) {
-    if (selectedTraits[name] != null) filteredSelections[name] = selectedTraits[name];
-  }
-
-  const assets = await downloadSelectedTraits(
-    orderedLayers,
-    traitsByLayerId,
-    filteredSelections
-  );
-
-  try {
-    const result = await renderSingle(config, {
-      traitsByLayer: assets.traitsByLayer,
-      selectedTraits: filteredSelections,
-      edition: 1,
+    const previewLayerNames = layersOrder.map((l) => l.name);
+    const { traitsByLayerId, config } = await loadProjectConfig(projectId, userId, {
+      previewLayerNames,
     });
 
-    return {
-      image: result.buffer.toString("base64"),
-      dna: result.dna,
-      metadata: result.metadata,
-      attributes: result.attributes,
-    };
-  } finally {
-    cleanupTempDir(assets.tmpDir);
-  }
+    config.layerConfigurations = [{ growEditionSizeTo: 1, layersOrder }];
+
+    const orderedLayers = layersOrder
+      .map((lo) => (layers || []).find((l) => l.name === lo.name))
+      .filter(Boolean);
+
+    const filteredSelections = {};
+    for (const { name } of layersOrder) {
+      if (selectedTraits[name] != null) filteredSelections[name] = selectedTraits[name];
+    }
+
+    const assets = await downloadSelectedTraits(
+      orderedLayers,
+      traitsByLayerId,
+      filteredSelections
+    );
+
+    try {
+      const result = await renderSingle(config, {
+        traitsByLayer: assets.traitsByLayer,
+        selectedTraits: filteredSelections,
+        edition: 1,
+      });
+
+      return {
+        image: result.buffer.toString("base64"),
+        dna: result.dna,
+        metadata: result.metadata,
+        attributes: result.attributes,
+      };
+    } finally {
+      cleanupTempDir(assets.tmpDir);
+    }
   });
 }
 

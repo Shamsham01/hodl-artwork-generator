@@ -32,7 +32,8 @@ function pruneOldCacheVersions(projectDir, keepVersion) {
   }
 }
 
-async function loadProjectConfig(projectId, userId) {
+async function loadProjectConfig(projectId, userId, options = {}) {
+  const { previewLayerNames = null } = options;
   const { data: project, error } = await supabase
     .from("projects")
     .select("*")
@@ -59,11 +60,13 @@ async function loadProjectConfig(projectId, userId) {
     .eq("project_id", projectId)
     .order("sort_order");
 
-  const layerIds = (layers || []).map((l) => l.id);
+  const traitLayerIds = previewLayerNames?.length
+    ? (layers || []).filter((l) => previewLayerNames.includes(l.name)).map((l) => l.id)
+    : (layers || []).map((l) => l.id);
   const { data: traits } = await supabase
     .from("traits")
     .select("*")
-    .in("layer_id", layerIds.length ? layerIds : ["00000000-0000-0000-0000-000000000000"]);
+    .in("layer_id", traitLayerIds.length ? traitLayerIds : ["00000000-0000-0000-0000-000000000000"]);
 
   const traitsByLayerId = {};
   (traits || []).forEach((t) => {

@@ -64,7 +64,6 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.options(/.*/, cors());
 
 app.use(express.json({ limit: "10mb" }));
 
@@ -112,6 +111,8 @@ app.post("/api/preview", previewLimiter, authMiddleware, async (req, res) => {
     );
     res.json(result);
   } catch (err) {
+    applyCorsHeaders(req, res);
+    console.error("Preview error:", err);
     res.status(500).json({ error: err.message });
   }
 });

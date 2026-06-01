@@ -134,10 +134,10 @@ const createRenderer = (config, layersDir, traitsByLayer = null) => {
     }
 
     const excludedLayers = getExcludedLayerNames(
-      results.map((ro) => ({ layer: ro.layer }))
+      results.map((ro) => ({ layer: ro }))
     );
     const layersToRender = results.filter(
-      (ro) => !excludedLayers.has(ro.layer.layerKey || ro.layer.name)
+      (ro) => !excludedLayers.has(ro.layerKey || ro.name)
     );
 
     // Load and draw one layer at a time so large stacks (20+ layers) don't
