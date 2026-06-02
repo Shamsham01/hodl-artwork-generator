@@ -12,6 +12,7 @@ import {
   clearEditionsForJob,
 } from "./traitCache.js";
 import { clearProjectGenerationsClient } from "./projectActions.js";
+import { downloadLayerAsset } from "./storageDownload.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const LIVE_PREVIEW_KEEP = 20;
@@ -20,12 +21,7 @@ let activeWorker = null;
 let activeJobId = null;
 
 async function downloadTraitFromStorage(storagePath) {
-  for (const path of [storagePath]) {
-    const { data, error } = await supabase.storage.from("layer-assets").download(path);
-    if (!data || error) continue;
-    return data;
-  }
-  return null;
+  return downloadLayerAsset(storagePath, { preferThumb: false });
 }
 
 async function callVerifyGeneration({ projectId, editionSize, paymentTxHash, regenerate }) {
@@ -423,17 +419,38 @@ export async function resumeClientGeneration({
   });
 }
 
-export async function buildTraitsByLayerForPreview(layers, traitsByLayerId) {
+export async function buildTraitsByLayerForPreview(
+  layers,
+  traitsByLayerId,
+  selectedTraits = null
+) {
   const traitsByLayer = {};
-  const allTraits = layers.flatMap((l) => traitsByLayerId[l.id] || []);
-  await ensureTraitsCached(allTraits, downloadTraitFromStorage);
+
+  const traitsToFetch = [];
+  for (const layer of layers) {
+    const traits = traitsByLayerId[layer.id] || [];
+    if (selectedTraits?.[layer.name]) {
+      const picked = traits.find((t) => t.name === selectedTraits[layer.name]);
+      if (picked) traitsToFetch.push(picked);
+    } else if (traits.length) {
+      traitsToFetch.push(traits[0]);
+    }
+  }
+
+  await ensureTraitsCached(traitsToFetch, downloadTraitFromStorage);
 
   for (const layer of layers) {
     const traits = traitsByLayerId[layer.id] || [];
     traitsByLayer[layer.name] = [];
     for (let i = 0; i < traits.length; i++) {
       const t = traits[i];
-      const blob = await getTraitBlob(t.storage_path);
+      const selected = selectedTraits?.[layer.name] === t.name;
+      const blob = selected ? await getTraitBlob(t.storage_path) : null;
+      if (selected && !blob) {
+        throw new Error(
+          `Could not load "${t.name}" from storage (try again in a few seconds).`
+        );
+      }
       traitsByLayer[layer.name].push({
         id: i,
         name: t.name,

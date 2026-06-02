@@ -142,7 +142,11 @@ export default function PreviewPanel({ projectId }) {
         jobConfig
       );
 
-      const traitsByLayer = await buildTraitsByLayerForPreview(jobLayers, jobTraits);
+      const traitsByLayer = await buildTraitsByLayerForPreview(
+        jobLayers,
+        jobTraits,
+        selections
+      );
 
       const result = await renderSingle(jobConfig, {
         traitsByLayer,

@@ -1,13 +1,6 @@
-import { supabase } from "./supabase";
+import { downloadLayerAsset, traitThumbPath } from "./storageDownload";
 
-export function traitThumbPath(storagePath) {
-  const slash = storagePath.lastIndexOf("/");
-  const dir = storagePath.slice(0, slash);
-  const file = storagePath
-    .slice(slash + 1)
-    .replace(/\.(png|jpe?g|gif)$/i, ".webp");
-  return `${dir}/thumbs/${file}`;
-}
+export { traitThumbPath };
 
 /**
  * Download a trait preview via the user's Supabase session (RLS).
@@ -16,14 +9,9 @@ export function traitThumbPath(storagePath) {
 export async function fetchTraitPreviewBlobUrl(storagePath) {
   if (!storagePath) return null;
 
-  for (const path of [traitThumbPath(storagePath), storagePath]) {
-    const { data, error } = await supabase.storage.from("layer-assets").download(path);
-    if (!error && data) {
-      const blob = data instanceof Blob ? data : await data.blob();
-      return URL.createObjectURL(blob);
-    }
-  }
-  return null;
+  const blob = await downloadLayerAsset(storagePath, { preferThumb: true });
+  if (!blob) return null;
+  return URL.createObjectURL(blob);
 }
 
 export function revokeBlobUrl(url) {

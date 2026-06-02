@@ -43,20 +43,40 @@ export async function putTraitBlob(storagePath, blob) {
   });
 }
 
+const CACHE_CONCURRENCY = 4;
+
+async function runPool(items, worker, concurrency) {
+  let index = 0;
+  async function runOne() {
+    while (index < items.length) {
+      const i = index++;
+      await worker(items[i], i);
+    }
+  }
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => runOne()
+  );
+  await Promise.all(workers);
+}
+
 export async function ensureTraitsCached(traits, downloadFn) {
   let cached = 0;
+  const missing = [];
   for (const trait of traits) {
     const existing = await getTraitBlob(trait.storage_path);
-    if (existing) {
-      cached++;
-      continue;
-    }
+    if (existing) cached++;
+    else missing.push(trait);
+  }
+
+  await runPool(missing, async (trait) => {
     const blob = await downloadFn(trait.storage_path);
     if (blob) {
       await putTraitBlob(trait.storage_path, blob);
       cached++;
     }
-  }
+  }, CACHE_CONCURRENCY);
+
   return cached;
 }
 
