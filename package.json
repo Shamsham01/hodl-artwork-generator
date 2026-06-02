@@ -10,8 +10,8 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "node index.js",
-    "generate": "node index.js",
+    "build": "node cli.js",
+    "generate": "node cli.js",
     "rarity": "node utils/rarity.js",
     "preview": "node utils/preview.js",
     "pixelate": "node utils/pixelate.js",
@@ -22,7 +22,7 @@
     "dev:api": "npm run dev --workspace=apps/api",
     "build:web": "npm run build --workspace=apps/web",
     "build:api": "npm run build --workspace=apps/api",
-    "start:web": "node server.js"
+    "start:web": "node index.js"
   },
   "author": "Daniel Eugene Botha (HashLips)",
   "license": "MIT",
