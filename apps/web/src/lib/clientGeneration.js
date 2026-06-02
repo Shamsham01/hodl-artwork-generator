@@ -11,7 +11,10 @@ import {
   saveEdition,
   clearEditionsForJob,
 } from "./traitCache.js";
-import { clearProjectGenerationsClient } from "./projectActions.js";
+import {
+  clearProjectGenerationsClient,
+  uploadPreviewThumb,
+} from "./projectActions.js";
 import { downloadLayerAsset } from "./storageDownload.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
