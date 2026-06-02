@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 import { api } from "../lib/api";
+import { useGenerationPayment } from "../hooks/useGenerationPayment";
 
 export default function GeneratePanel({ projectId, project, onUpdate }) {
   const [editionSize, setEditionSize] = useState(project?.edition_size || 100);
@@ -31,6 +32,9 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
   const [loadingResults, setLoadingResults] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [paying, setPaying] = useState(false);
+
+  const { paymentDisabled, getCharge, payForEditions } = useGenerationPayment();
 
   const LIVE_PREVIEW_LIMIT = 10;
   const livePreview = job?.status === "running" || job?.status === "queued";
@@ -70,6 +74,7 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
   const hasConfigs = configs.length > 0;
   const configTotal = configs.reduce((sum, c) => sum + (c.edition_count || 0), 0);
   const effectiveSize = hasConfigs ? configTotal : editionSize;
+  const generationCharge = getCharge(effectiveSize);
   const busy = job?.status === "running" || job?.status === "queued";
 
   useEffect(() => {
@@ -96,11 +101,22 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     };
   }, [job?.id]);
 
+  async function collectGenerationPayment() {
+    setPaying(true);
+    try {
+      return await payForEditions(effectiveSize);
+    } finally {
+      setPaying(false);
+    }
+  }
+
   async function startGeneration() {
     setGenerating(true);
     setError(null);
     setRarity(null);
     try {
+      const paymentTxHash = await collectGenerationPayment();
+
       await supabase
         .from("projects")
         .update({
@@ -112,13 +128,18 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
 
       // If a previous (failed) job exists, clear its partial output first.
       const result = job
-        ? await api.regenerate(projectId, effectiveSize)
-        : await api.generate(projectId, effectiveSize);
+        ? await api.regenerate(projectId, effectiveSize, paymentTxHash)
+        : await api.generate(projectId, effectiveSize, paymentTxHash);
       setJob(result.job);
       setResults([]);
       onUpdate?.();
     } catch (err) {
-      setError(err.message);
+      const msg = err?.message || String(err);
+      if (/user rejected|cancelled|canceled|denied/i.test(msg)) {
+        setError("Payment cancelled.");
+      } else {
+        setError(msg);
+      }
     }
     setGenerating(false);
   }
@@ -203,21 +224,35 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     setRegenerating(true);
     setError(null);
     try {
+      const paymentTxHash = await collectGenerationPayment();
+
       await supabase
         .from("projects")
         .update({ edition_size: effectiveSize })
         .eq("id", projectId);
-      const result = await api.regenerate(projectId, effectiveSize);
+      const result = await api.regenerate(
+        projectId,
+        effectiveSize,
+        paymentTxHash
+      );
       setJob(result.job);
       setResults([]);
       setRarity(null);
       setConfirmRegen(false);
       onUpdate?.();
     } catch (err) {
-      setError(err.message);
+      const msg = err?.message || String(err);
+      if (/user rejected|cancelled|canceled|denied/i.test(msg)) {
+        setError("Payment cancelled.");
+      } else {
+        setError(msg);
+      }
     }
     setRegenerating(false);
   }
+
+  const paymentBusy = paying;
+  const actionBusy = generating || regenerating || paymentBusy;
 
   const progress = job ? Math.round((job.progress / job.edition_size) * 100) : 0;
 
@@ -264,14 +299,29 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
             </div>
           )}
 
+          {!paymentDisabled && (
+            <p className="text-xs text-zinc-500">
+              Generation fee:{" "}
+              <span className="text-zinc-300">
+                {generationCharge.displayAmount}
+              </span>{" "}
+              ({generationCharge.buckets} × 100 editions @ 0.5 USDC). Paid to
+              HODL Token Club treasury via wallet on Generate / Re-generate.
+            </p>
+          )}
+
           {!job || job.status === "failed" ? (
             <button
               onClick={startGeneration}
-              disabled={generating}
+              disabled={actionBusy}
               className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
             >
               <Play size={18} weight="bold" />
-              {generating ? "Starting..." : "Generate collection"}
+              {paymentBusy
+                ? `Confirm ${generationCharge.displayAmount} in wallet…`
+                : generating
+                  ? "Starting..."
+                  : `Generate collection (${generationCharge.displayAmount})`}
             </button>
           ) : job.status === "complete" ? (
             <div className="space-y-4">
@@ -290,7 +340,7 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                 </button>
                 <button
                   onClick={() => setConfirmRegen(true)}
-                  disabled={regenerating}
+                  disabled={actionBusy}
                   className="inline-flex items-center gap-2 rounded-full border border-zinc-700 px-5 py-3 text-sm font-medium text-zinc-300 hover:border-emerald-500/40 hover:text-emerald-400 transition-colors disabled:opacity-50"
                 >
                   <ArrowsClockwise size={18} weight="bold" />
@@ -491,6 +541,16 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                 creates a brand-new set from your latest layers, rules and
                 settings. This keeps the database clean but cannot be undone.
               </p>
+              {!paymentDisabled && (
+                <p className="text-sm text-zinc-500">
+                  Fee for this run:{" "}
+                  <span className="text-zinc-300">
+                    {generationCharge.displayAmount}
+                  </span>{" "}
+                  — your wallet will open to confirm payment before
+                  re-generation starts.
+                </p>
+              )}
               {error && <p className="text-sm text-red-400">{error}</p>}
               <div className="flex justify-end gap-2 pt-1">
                 <button
@@ -502,11 +562,15 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                 </button>
                 <button
                   onClick={handleRegenerate}
-                  disabled={regenerating}
+                  disabled={actionBusy}
                   className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
                 >
                   <ArrowsClockwise size={16} weight="bold" />
-                  {regenerating ? "Starting…" : "Delete & re-generate"}
+                  {paymentBusy
+                    ? `Confirm ${generationCharge.displayAmount}…`
+                    : regenerating
+                      ? "Starting…"
+                      : `Pay ${generationCharge.displayAmount} & re-generate`}
                 </button>
               </div>
             </div>

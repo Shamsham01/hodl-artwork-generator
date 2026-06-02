@@ -13,6 +13,9 @@ const {
   startWorker,
 } = require("./workers/jobProcessor");
 const { deleteProject, clearProjectGenerations } = require("./services/projectService");
+const {
+  verifyAndRecordGenerationPayment,
+} = require("./services/generationPayment");
 const { ensureTraitThumbs } = require("./services/thumbnails");
 const { parseTraitFilename } = require("@basturds/engine");
 
@@ -182,6 +185,13 @@ app.post("/api/projects/:id/generate", authMiddleware, async (req, res) => {
       return res.status(409).json({ error: "Generation already in progress" });
     }
 
+    await verifyAndRecordGenerationPayment({
+      paymentTxHash: req.body.paymentTxHash,
+      editionCount: size,
+      projectId,
+      user: req.user,
+    });
+
     const job = await queueGenerationJob(projectId, size);
     res.status(202).json({ job });
   } catch (err) {
@@ -214,6 +224,13 @@ app.post("/api/projects/:id/regenerate", authMiddleware, async (req, res) => {
 
     // Wipe all previous jobs, editions and generated files first.
     await clearProjectGenerations(projectId, req.userId);
+
+    await verifyAndRecordGenerationPayment({
+      paymentTxHash: req.body.paymentTxHash,
+      editionCount: size,
+      projectId,
+      user: req.user,
+    });
 
     const job = await queueGenerationJob(projectId, size);
     res.status(202).json({ job });

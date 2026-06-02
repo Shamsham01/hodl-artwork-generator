@@ -60,16 +60,16 @@ export const api = {
       body: JSON.stringify({ projectId, selectedTraits, configurationId }),
     }),
 
-  generate: (projectId, editionSize) =>
+  generate: (projectId, editionSize, paymentTxHash) =>
     apiFetch(`/api/projects/${projectId}/generate`, {
       method: "POST",
-      body: JSON.stringify({ editionSize }),
+      body: JSON.stringify({ editionSize, paymentTxHash }),
     }),
 
-  regenerate: (projectId, editionSize) =>
+  regenerate: (projectId, editionSize, paymentTxHash) =>
     apiFetch(`/api/projects/${projectId}/regenerate`, {
       method: "POST",
-      body: JSON.stringify({ editionSize }),
+      body: JSON.stringify({ editionSize, paymentTxHash }),
     }),
 
   getEditions: (jobId, { limit = 48, offset = 0, latest = false, thumbsOnly = false } = {}) => {
