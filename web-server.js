@@ -11,6 +11,42 @@ const ROOT = __dirname;
 const DIST = path.join(ROOT, "apps/web/dist");
 const INDEX = path.join(DIST, "index.html");
 
+function loadEnvFile() {
+  const envPath = path.join(ROOT, ".env");
+  if (!fs.existsSync(envPath)) return;
+  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let val = trimmed.slice(eq + 1).trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = val;
+  }
+}
+
+function assertRepoComplete() {
+  const required = [
+    "packages/engine-browser/src/index.js",
+    "packages/engine-core/src/index.js",
+    "apps/web/package.json",
+  ];
+  const missing = required.filter((p) => !fs.existsSync(path.join(ROOT, p)));
+  if (missing.length) {
+    throw new Error(
+      `[hodl] Incomplete deploy — missing:\n  ${missing.join("\n  ")}\n` +
+        "Use Cybrancee Importer to clone the full GitHub repo (main branch), " +
+        "or upload the entire repo including the packages/ folder."
+    );
+  }
+}
+
 function listenPort() {
   const raw =
     process.env.PORT ||
@@ -22,22 +58,23 @@ function listenPort() {
 }
 
 function shouldBuild() {
-  if (process.env.BUILD_ON_START === "true" || process.env.BUILD_ON_START === "1") {
-    return true;
-  }
   if (process.env.BUILD_ON_START === "false" || process.env.BUILD_ON_START === "0") {
     return false;
   }
-  return !fs.existsSync(INDEX);
+  // Never auto-build on start — 512 MB Cybrancee boxes OOM on npm install + vite.
+  // Build locally: npm run package:cybrancee
+  return process.env.BUILD_ON_START === "true" || process.env.BUILD_ON_START === "1";
 }
 
 function runBuild() {
+  assertRepoComplete();
   console.log("[hodl] Building web app (npm run build:web)...");
   const required = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"];
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length) {
-    console.warn(
-      `[hodl] Warning: missing env vars for Vite build: ${missing.join(", ")}`
+    throw new Error(
+      `[hodl] Missing env vars for Vite build: ${missing.join(", ")}.\n` +
+        "Add them in Cybrancee Variables, or create /home/container/.env with VITE_* keys."
     );
   }
 
@@ -52,7 +89,8 @@ function runBuild() {
 function createApp() {
   if (!fs.existsSync(INDEX)) {
     throw new Error(
-      `Missing ${INDEX}. Set BUILD_ON_START=true or run npm run build:web first.`
+      `Missing ${INDEX}. Set BUILD_ON_START=true (with full repo + VITE_* env), ` +
+        `or run "npm run package:cybrancee" locally and upload deploy/cybrancee/out/ with BUILD_ON_START=false.`
     );
   }
 
@@ -82,14 +120,17 @@ function createApp() {
 }
 
 function startWebServer() {
+  loadEnvFile();
   console.log("[hodl] cwd:", ROOT);
   console.log("[hodl] has package.json:", fs.existsSync(path.join(ROOT, "package.json")));
   console.log("[hodl] has web-server.js:", fs.existsSync(path.join(ROOT, "web-server.js")));
 
   if (shouldBuild()) {
     runBuild();
+  } else if (fs.existsSync(INDEX)) {
+    console.log("[hodl] Serving pre-built dist (BUILD_ON_START not enabled).");
   } else {
-    console.log("[hodl] Skipping build (dist present, BUILD_ON_START not set).");
+    console.log("[hodl] No dist yet — BUILD_ON_START is not true; will fail until dist is uploaded.");
   }
 
   const port = listenPort();

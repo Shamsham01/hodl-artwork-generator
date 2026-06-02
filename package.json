@@ -22,7 +22,8 @@
     "dev:api": "npm run dev --workspace=apps/api",
     "build:web": "npm run build --workspace=apps/web",
     "build:api": "npm run build --workspace=apps/api",
-    "start:web": "node index.js"
+    "start:web": "node index.js",
+    "package:cybrancee": "node scripts/package-cybrancee.js"
   },
   "author": "Daniel Eugene Botha (HashLips)",
   "license": "MIT",

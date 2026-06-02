@@ -7,6 +7,8 @@ build/
 # Supabase CLI local scratch state
 supabase/.temp/
 supabase/.branches/
+# Cybrancee SFTP bundle output
+deploy/cybrancee/out/
 # Secrets — never commit any real env file (templates use .env.example)
 .env
 .env.*
