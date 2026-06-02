@@ -130,27 +130,40 @@ async function processJob(jobId) {
         const thumbPath = `${outputPrefix}/thumbs/${edition}.webp`;
         const metadataPath = `${outputPrefix}/json/${edition}.json`;
 
-        await supabase.storage
+        const { error: imageError } = await supabase.storage
           .from("generations")
           .upload(imagePath, buffer, { contentType: "image/png", upsert: true });
+        // Storage.upload() resolves with an { error } object rather than
+        // throwing, so a silent failure here would record an edition with no
+        // file. Surface it loudly instead.
+        if (imageError) {
+          throw new Error(`Image upload failed for #${edition}: ${imageError.message}`);
+        }
 
         // Small WebP thumbnail for the gallery so the UI never downloads the
-        // full-resolution PNG just to show a preview tile.
+        // full-resolution PNG just to show a preview tile. The generations
+        // bucket must allow image/webp (see migration) or this is rejected.
         try {
           const thumb = await createThumbnail(buffer, 256);
-          await supabase.storage
+          const { error: thumbError } = await supabase.storage
             .from("generations")
             .upload(thumbPath, thumb, { contentType: "image/webp", upsert: true });
+          if (thumbError) {
+            console.error(`Thumbnail upload failed for #${edition}:`, thumbError.message);
+          }
         } catch (thumbErr) {
           console.error(`Thumbnail failed for #${edition}:`, thumbErr.message);
         }
 
-        await supabase.storage
+        const { error: metadataError } = await supabase.storage
           .from("generations")
           .upload(metadataPath, JSON.stringify(metadata, null, 2), {
             contentType: "application/json",
             upsert: true,
           });
+        if (metadataError) {
+          throw new Error(`Metadata upload failed for #${edition}: ${metadataError.message}`);
+        }
 
         await supabase.from("generated_editions").insert({
           job_id: jobId,
