@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchTraitPreviewBlobUrl, revokeBlobUrl } from "../lib/traitPreviews";
+import { ensureTraitThumbs } from "../lib/traitThumbs";
 
 export default function TraitMatrix({ projectId }) {
   const [layers, setLayers] = useState([]);
@@ -44,6 +45,13 @@ export default function TraitMatrix({ projectId }) {
 
     setLayers(enriched);
     setLoading(false);
+
+    const paths = (traitData || [])
+      .map((t) => t.storage_path)
+      .filter(Boolean);
+    if (paths.length) {
+      ensureTraitThumbs(paths, { concurrency: 2 }).catch(() => {});
+    }
   }
 
   async function updateWeight(traitId, weight) {
@@ -86,8 +94,8 @@ export default function TraitMatrix({ projectId }) {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <p className="text-xs text-zinc-500 max-w-lg">
-          Previews load as you scroll — WebP thumbs (~3 KB) when available, full PNG
-          only as fallback. No SQL changes needed; thumbs live in Storage beside your layers.
+          Trait previews use 512px WebP thumbs (~25–50 KB) in Storage — less egress than
+          full PNGs. Opening this page builds upgraded thumbs in the background.
         </p>
         <button
           onClick={exportCsv}

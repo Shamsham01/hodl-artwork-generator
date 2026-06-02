@@ -6,7 +6,7 @@ export function traitThumbPath(storagePath) {
   const file = storagePath
     .slice(slash + 1)
     .replace(/\.(png|jpe?g|gif)$/i, ".webp");
-  return `${dir}/thumbs/${file}`;
+  return `${dir}/thumbs/v2/${file}`;
 }
 
 const MAX_CONCURRENT = 6;

@@ -1,4 +1,5 @@
 const TRAIT_DB = "hodl-trait-cache";
+const TRAIT_DB_VERSION = 2;
 const TRAIT_STORE = "traits";
 const EDITION_DB = "hodl-edition-cache";
 const EDITION_STORE = "editions";
@@ -17,7 +18,11 @@ function openDb(name, version, storeName) {
 }
 
 async function withStore(dbName, storeName, mode, fn) {
-  const db = await openDb(dbName, 1, storeName);
+  const db = await openDb(
+    dbName,
+    dbName === TRAIT_DB ? TRAIT_DB_VERSION : 1,
+    storeName
+  );
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, mode);
     const store = tx.objectStore(storeName);

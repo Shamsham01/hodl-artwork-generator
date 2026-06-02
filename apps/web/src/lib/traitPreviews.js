@@ -4,7 +4,7 @@ export { traitThumbPath };
 
 /**
  * Download a trait preview via the user's Supabase session (RLS).
- * Tries the small WebP thumb first, then the full PNG as a fallback.
+ * Tries the 512px WebP thumb (v2, ~25–50 KB) first, then full PNG as fallback.
  */
 export async function fetchTraitPreviewBlobUrl(storagePath) {
   if (!storagePath) return null;

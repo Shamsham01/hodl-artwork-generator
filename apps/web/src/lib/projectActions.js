@@ -1,63 +1,8 @@
 import { supabase } from "./supabase";
 import { parseTraitFilename } from "@basturds/engine-core";
-import { traitThumbPath } from "./traitPreviews.js";
+import { ensureTraitThumb, ensureTraitThumbs } from "./traitThumbs.js";
 
-async function createWebpThumb(pngBlob, maxSize = 256, quality = 0.72) {
-  const bitmap = await createImageBitmap(pngBlob);
-  const ratio = Math.min(maxSize / bitmap.width, maxSize / bitmap.height, 1);
-  const w = Math.max(1, Math.round(bitmap.width * ratio));
-  const h = Math.max(1, Math.round(bitmap.height * ratio));
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(bitmap, 0, 0, w, h);
-  bitmap.close();
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("WebP encode failed"))),
-      "image/webp",
-      quality
-    );
-  });
-}
-
-export async function ensureTraitThumb(storagePath) {
-  const thumbPath = traitThumbPath(storagePath);
-  const { data: existing } = await supabase.storage
-    .from("layer-assets")
-    .list(thumbPath.slice(0, thumbPath.lastIndexOf("/")), {
-      search: thumbPath.slice(thumbPath.lastIndexOf("/") + 1),
-    });
-  if (existing?.some((f) => f.name === thumbPath.slice(thumbPath.lastIndexOf("/") + 1))) {
-    return thumbPath;
-  }
-
-  const { data, error } = await supabase.storage
-    .from("layer-assets")
-    .download(storagePath);
-  if (error || !data) return null;
-
-  const webp = await createWebpThumb(data);
-  const { error: uploadError } = await supabase.storage
-    .from("layer-assets")
-    .upload(thumbPath, webp, { contentType: "image/webp", upsert: true });
-  if (uploadError) return null;
-  return thumbPath;
-}
-
-export async function ensureTraitThumbs(storagePaths) {
-  const results = [];
-  for (const path of storagePaths) {
-    try {
-      results.push(await ensureTraitThumb(path));
-    } catch {
-      // non-fatal
-    }
-  }
-  return results;
-}
+export { ensureTraitThumb, ensureTraitThumbs };
 
 export async function uploadPreviewThumb(userId, projectId, jobId, edition, webpBlob) {
   const path = `${userId}/${projectId}/previews/${jobId}/${edition}.webp`;

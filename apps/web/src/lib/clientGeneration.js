@@ -20,8 +20,14 @@ const LIVE_PREVIEW_KEEP = 20;
 let activeWorker = null;
 let activeJobId = null;
 
+/** Full PNG — used for final batch generation output quality */
 async function downloadTraitFromStorage(storagePath) {
   return downloadLayerAsset(storagePath, { preferThumb: false });
+}
+
+/** WebP thumb first — studio preview & cached trait blobs for compositing */
+async function downloadTraitForPreview(storagePath) {
+  return downloadLayerAsset(storagePath, { preferThumb: true });
 }
 
 async function callVerifyGeneration({ projectId, editionSize, paymentTxHash, regenerate }) {
@@ -437,7 +443,7 @@ export async function buildTraitsByLayerForPreview(
     }
   }
 
-  await ensureTraitsCached(traitsToFetch, downloadTraitFromStorage);
+  await ensureTraitsCached(traitsToFetch, downloadTraitForPreview);
 
   for (const layer of layers) {
     const traits = traitsByLayerId[layer.id] || [];
