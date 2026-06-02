@@ -8,7 +8,8 @@ function truncateAddress(addr) {
 }
 
 export default function Nav() {
-  const { isAuthenticated, walletAddress, connectWallet, disconnect } = useAuth();
+  const { isAuthenticated, walletAddress, connectWallet, disconnect, authError } =
+    useAuth();
   const location = useLocation();
   const isLanding = location.pathname === "/";
 
@@ -27,6 +28,14 @@ export default function Nav() {
         </Link>
 
         <div className="flex items-center gap-4">
+          {authError && (
+            <span
+              className="hidden sm:block max-w-[200px] truncate text-xs text-red-400"
+              title={authError}
+            >
+              {authError}
+            </span>
+          )}
           {isAuthenticated && !isLanding && (
             <Link
               to="/dashboard"

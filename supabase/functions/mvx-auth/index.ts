@@ -7,6 +7,7 @@ import { NativeAuthServer } from "https://esm.sh/@multiversx/sdk-native-auth-ser
 const DEFAULT_ORIGINS = [
   "http://localhost:5173",
   "https://hodl-artwork-generator.netlify.app",
+  "http://bot-service-eu-central-04.cybrancee.com:5028",
 ];
 
 function acceptedOrigins(): string[] {
@@ -47,8 +48,8 @@ const MVX_API_MAP: Record<string, string> = {
 // Validate the Native Auth token using the official server library.
 // Returns the wallet address on success, or throws with a reason.
 async function validateNativeAuth(accessToken: string): Promise<string> {
-  const network = Deno.env.get("MVX_ENV") || "devnet";
-  const apiUrl = MVX_API_MAP[network] || MVX_API_MAP.devnet;
+  const network = Deno.env.get("MVX_ENV") || "mainnet";
+  const apiUrl = MVX_API_MAP[network] || MVX_API_MAP.mainnet;
 
   const server = new NativeAuthServer({
     apiUrl,

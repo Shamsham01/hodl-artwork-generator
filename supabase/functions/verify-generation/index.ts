@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const DEFAULT_ORIGINS = [
   "http://localhost:5173",
   "https://hodl-artwork-generator.netlify.app",
+  "http://bot-service-eu-central-04.cybrancee.com:5028",
 ];
 
 function acceptedOrigins(): string[] {

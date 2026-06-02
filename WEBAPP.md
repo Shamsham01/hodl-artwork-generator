@@ -4,10 +4,10 @@ Premium NFT art generator for MultiversX creators. Upload layered artwork, defin
 
 ## Architecture
 
-- **Frontend** (`apps/web`): Vite + React, deployed to Netlify
-- **API** (`apps/api`): Express + canvas engine, deployed to Render
-- **Database** (`supabase/`): Postgres, Storage, Auth, Edge Functions
-- **Engine** (`packages/engine`): Extracted HashLips generation logic
+- **Frontend** (`apps/web`): Vite + React, deployed to **Netlify** (GitHub auto-deploy, SSL, custom domain)
+- **Database** (`supabase/`): Postgres, Storage, Auth, Edge Functions (`mvx-auth`, `verify-generation`)
+- **Engine** (`packages/engine-core`, `packages/engine-browser`): Preview + batch generation in the **browser**
+- **Cybrancee / Render**: Not required for production (optional Cybrancee only if you want a second host)
 
 ## Quick Start
 
@@ -52,18 +52,21 @@ npm run generate
 
 ## Deployment
 
-### Netlify (Frontend)
+### Netlify (Frontend — recommended production)
 
-- Base directory: `apps/web`
-- Build command: `npm install --legacy-peer-deps && npm run build`
-- Publish directory: `dist`
-- Set `VITE_*` environment variables
+- Connect GitHub repo `hodl-artwork-generator`, branch `main`
+- Uses root `netlify.toml` (base directory: **repository root**, not `apps/web`)
+- Set `VITE_*` in Netlify → Site settings → Environment variables
+- Custom domain: Netlify DNS or your registrar → automatic HTTPS
 
-### Render (API)
+### Cybrancee (optional)
 
-- Use `apps/api/render.yaml` or Docker
-- Set `SUPABASE_*`, `FRONTEND_URL`, `PORT` env vars
-- Requires Node 20 with native canvas dependencies
+- Only needed if you want Node hosting outside Netlify; use `npm run package:cybrancee` for a static bundle
+- For most users: **skip Cybrancee** and use Netlify instead
+
+### Render (legacy API — decommissioned)
+
+- Generation moved to the browser; cancel Render to save cost
 
 ### Supabase
 

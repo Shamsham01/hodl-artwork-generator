@@ -70,6 +70,10 @@ fs.mkdirSync(OUT, { recursive: true });
 
 copyFile(path.join(ROOT, "index.js"), path.join(OUT, "index.js"));
 copyFile(path.join(ROOT, "web-server.js"), path.join(OUT, "web-server.js"));
+copyFile(
+  path.join(ROOT, "scripts/cybrancee-git-bootstrap.sh"),
+  path.join(OUT, "cybrancee-git-bootstrap.sh")
+);
 copyDir(distSrc, path.join(OUT, "apps/web/dist"));
 fs.writeFileSync(
   path.join(OUT, "package.json"),
@@ -93,10 +97,15 @@ console.log("");
 console.log("Done:", OUT);
 console.log("Size:", sizeMb(OUT), "MB");
 console.log("");
-console.log("Upload ALL files inside deploy/cybrancee/out/ to /home/container/");
-console.log("Cybrancee settings:");
+console.log("Upload ALL contents of deploy/cybrancee/out/ to /home/container/");
+console.log("");
+console.log("Cybrancee settings for MANUAL upload (recommended):");
 console.log("  Bot JS File: index.js");
 console.log("  NPM Install: ON");
-console.log("  BUILD_ON_START: false  (or unset — do NOT set true on 512MB plans)");
-console.log("  No VITE_* env needed on server (already baked into dist)");
+console.log("  AUTO UPDATE: OFF     <- git pull only works if .git exists on server");
+console.log("  USER UPLOADED FILES: OFF");
+console.log("  BUILD_ON_START: false");
+console.log("  (VITE_* vars already baked into dist — no .env needed on server)");
+console.log("");
+console.log("For server-side build instead, run: npm run package:cybrancee:full");
 console.log("");

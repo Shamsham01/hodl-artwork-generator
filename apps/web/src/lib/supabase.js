@@ -10,8 +10,18 @@ export async function loginWithNativeAuth(accessToken) {
     body: { accessToken },
   });
 
-  if (error) throw error;
-  if (data.error) throw new Error(data.error);
+  if (error) {
+    const reason = data?.reason || data?.error;
+    const msg = reason
+      ? `${error.message}: ${reason}`
+      : error.message;
+    throw new Error(msg);
+  }
+  if (data?.error) {
+    throw new Error(
+      data.reason ? `${data.error}: ${data.reason}` : data.error
+    );
+  }
 
   if (data.session) {
     await supabase.auth.setSession({

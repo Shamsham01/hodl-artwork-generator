@@ -1,0 +1,15 @@
+# Production frontend: Netlify builds the SPA; generation runs in the browser.
+# Connect this repo in Netlify — push to main triggers deploy (SSL + domain included).
+
+[build]
+  command = "npm install --legacy-peer-deps && npm run build:web"
+  publish = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

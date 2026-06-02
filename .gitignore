@@ -9,6 +9,7 @@ supabase/.temp/
 supabase/.branches/
 # Cybrancee SFTP bundle output
 deploy/cybrancee/out/
+deploy/cybrancee/full/
 # Secrets — never commit any real env file (templates use .env.example)
 .env
 .env.*
