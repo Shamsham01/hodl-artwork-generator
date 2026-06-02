@@ -32,6 +32,39 @@ function enqueuePreview(work) {
   return run;
 }
 
+/**
+ * Upload to Supabase Storage with retry + backoff. Supabase occasionally
+ * returns transient 5xx ("Bad Gateway") on uploads; without retries a single
+ * blip would fail the whole job and force a full (egress-wasting) regenerate.
+ * upsert keeps retries idempotent. Returns true on success; on persistent
+ * failure either throws (required = true) or returns false.
+ */
+async function uploadWithRetry(
+  bucket,
+  path,
+  body,
+  options,
+  { retries = 4, label = path, required = true } = {}
+) {
+  let lastError;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const { error } = await supabase.storage.from(bucket).upload(path, body, options);
+    if (!error) return true;
+    lastError = error;
+    if (attempt < retries) {
+      const wait = Math.min(500 * 2 ** (attempt - 1), 4000);
+      console.warn(
+        `Upload retry ${attempt}/${retries - 1} for ${label}: ${error.message} (waiting ${wait}ms)`
+      );
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+  const message = `Upload failed for ${label} after ${retries} attempts: ${lastError?.message}`;
+  if (required) throw new Error(message);
+  console.error(message);
+  return false;
+}
+
 async function loadResumeState(jobId) {
   const { data: editions } = await supabase
     .from("generated_editions")
@@ -130,40 +163,41 @@ async function processJob(jobId) {
         const thumbPath = `${outputPrefix}/thumbs/${edition}.webp`;
         const metadataPath = `${outputPrefix}/json/${edition}.json`;
 
-        const { error: imageError } = await supabase.storage
-          .from("generations")
-          .upload(imagePath, buffer, { contentType: "image/png", upsert: true });
         // Storage.upload() resolves with an { error } object rather than
-        // throwing, so a silent failure here would record an edition with no
-        // file. Surface it loudly instead.
-        if (imageError) {
-          throw new Error(`Image upload failed for #${edition}: ${imageError.message}`);
-        }
+        // throwing. Retry transient 5xx so a single blip doesn't fail the job
+        // (which would force a full, egress-wasting regenerate).
+        await uploadWithRetry(
+          "generations",
+          imagePath,
+          buffer,
+          { contentType: "image/png", upsert: true },
+          { label: `image #${edition}` }
+        );
 
         // Small WebP thumbnail for the gallery so the UI never downloads the
         // full-resolution PNG just to show a preview tile. The generations
         // bucket must allow image/webp (see migration) or this is rejected.
+        // Non-fatal: a missing thumb only degrades the live preview tile.
         try {
           const thumb = await createThumbnail(buffer, 256);
-          const { error: thumbError } = await supabase.storage
-            .from("generations")
-            .upload(thumbPath, thumb, { contentType: "image/webp", upsert: true });
-          if (thumbError) {
-            console.error(`Thumbnail upload failed for #${edition}:`, thumbError.message);
-          }
+          await uploadWithRetry(
+            "generations",
+            thumbPath,
+            thumb,
+            { contentType: "image/webp", upsert: true },
+            { retries: 3, label: `thumb #${edition}`, required: false }
+          );
         } catch (thumbErr) {
           console.error(`Thumbnail failed for #${edition}:`, thumbErr.message);
         }
 
-        const { error: metadataError } = await supabase.storage
-          .from("generations")
-          .upload(metadataPath, JSON.stringify(metadata, null, 2), {
-            contentType: "application/json",
-            upsert: true,
-          });
-        if (metadataError) {
-          throw new Error(`Metadata upload failed for #${edition}: ${metadataError.message}`);
-        }
+        await uploadWithRetry(
+          "generations",
+          metadataPath,
+          JSON.stringify(metadata, null, 2),
+          { contentType: "application/json", upsert: true },
+          { label: `metadata #${edition}` }
+        );
 
         await supabase.from("generated_editions").insert({
           job_id: jobId,
@@ -177,13 +211,13 @@ async function processJob(jobId) {
     });
 
     if (metadataList?.length) {
-      await supabase.storage
-        .from("generations")
-        .upload(
-          `${outputPrefix}/json/_metadata.json`,
-          JSON.stringify(metadataList, null, 2),
-          { contentType: "application/json", upsert: true }
-        );
+      await uploadWithRetry(
+        "generations",
+        `${outputPrefix}/json/_metadata.json`,
+        JSON.stringify(metadataList, null, 2),
+        { contentType: "application/json", upsert: true },
+        { label: "_metadata.json" }
+      );
     }
 
     const finalTotal =
