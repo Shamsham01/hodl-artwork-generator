@@ -1,0 +1,13 @@
+{
+  "name": "@basturds/engine-core",
+  "version": "1.0.0",
+  "description": "Pure JS HashLips engine (DNA, metadata, layers)",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "sha1": "^1.1.1"
+  }
+}

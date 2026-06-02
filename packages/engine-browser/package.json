@@ -1,0 +1,13 @@
+{
+  "name": "@basturds/engine-browser",
+  "version": "1.0.0",
+  "description": "Browser canvas renderer for HashLips engine",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@basturds/engine-core": "file:../engine-core"
+  }
+}

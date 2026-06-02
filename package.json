@@ -4,7 +4,9 @@
   "private": true,
   "description": "HashLips Art Engine - 3D Basturds NFT generator with web app",
   "workspaces": [
-    "packages/*",
+    "packages/engine",
+    "packages/engine-core",
+    "packages/engine-browser",
     "apps/*"
   ],
   "scripts": {
@@ -19,13 +21,15 @@
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:api": "npm run dev --workspace=apps/api",
     "build:web": "npm run build --workspace=apps/web",
-    "build:api": "npm run build --workspace=apps/api"
+    "build:api": "npm run build --workspace=apps/api",
+    "start:web": "node server.js"
   },
   "author": "Daniel Eugene Botha (HashLips)",
   "license": "MIT",
   "dependencies": {
     "@basturds/engine": "file:packages/engine",
     "@napi-rs/canvas": "^0.1.96",
+    "express": "^4.21.2",
     "gif-encoder-2": "^1.0.5",
     "sha1": "^1.1.1"
   }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Play,
   DownloadSimple,
@@ -9,10 +9,20 @@ import {
   Warning,
 } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
-import { api } from "../lib/api";
 import { useGenerationPayment } from "../hooks/useGenerationPayment";
+import { useAuth } from "../context/AuthContext";
+import { computeRarityFromMetadata } from "@basturds/engine-core";
+import {
+  startClientGeneration,
+  resumeClientGeneration,
+  isGenerationRunning,
+  updateCollectionUriClient,
+} from "../lib/clientGeneration.js";
+import { buildCollectionZip, triggerDownload } from "../lib/buildZip.js";
+import { clearEditionsForJob } from "../lib/traitCache.js";
 
 export default function GeneratePanel({ projectId, project, onUpdate }) {
+  const { user } = useAuth();
   const [editionSize, setEditionSize] = useState(project?.edition_size || 100);
   const [configs, setConfigs] = useState([]);
   const [job, setJob] = useState(null);
@@ -29,7 +39,6 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
   const [loadingRarity, setLoadingRarity] = useState(false);
 
   const [results, setResults] = useState([]);
-  const [loadingResults, setLoadingResults] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -38,14 +47,13 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
 
   const LIVE_PREVIEW_LIMIT = 10;
   const livePreview = job?.status === "running" || job?.status === "queued";
+  const wakeLockRef = useRef(null);
 
   useEffect(() => {
     if (project?.edition_size) setEditionSize(project.edition_size);
     if (project?.base_uri) setBaseUri(project.base_uri);
   }, [project]);
 
-  // Restore the most recent job so progress / download / update-URI survive
-  // switching tabs (the component unmounts and loses local state otherwise).
   useEffect(() => {
     if (!projectId) return;
     let active = true;
@@ -57,7 +65,39 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (active && data) setJob(data);
+      if (active && data) {
+        setJob(data);
+        if (
+          (data.status === "running" || data.status === "queued") &&
+          !isGenerationRunning() &&
+          user?.id
+        ) {
+          resumeClientGeneration({
+            projectId,
+            userId: user.id,
+            job: data,
+            onProgress: ({ completed }) => {
+              setJob((prev) => (prev ? { ...prev, progress: completed } : prev));
+            },
+            onEditionPreview: (edition) => {
+              setResults((prev) => {
+                const next = [...prev, edition].slice(-LIVE_PREVIEW_LIMIT);
+                return next;
+              });
+            },
+            onComplete: async () => {
+              const { data: fresh } = await supabase
+                .from("generation_jobs")
+                .select("*")
+                .eq("id", data.id)
+                .single();
+              if (fresh) setJob(fresh);
+              onUpdate?.();
+            },
+            onError: (err) => setError(err.message),
+          }).catch((err) => setError(err.message));
+        }
+      }
 
       const { data: cfg } = await supabase
         .from("layer_configurations")
@@ -69,7 +109,7 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [projectId, user?.id]);
 
   const hasConfigs = configs.length > 0;
   const configTotal = configs.reduce((sum, c) => sum + (c.edition_count || 0), 0);
@@ -101,6 +141,31 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     };
   }, [job?.id]);
 
+  useEffect(() => {
+    if (!busy) {
+      wakeLockRef.current?.release?.();
+      wakeLockRef.current = null;
+      return;
+    }
+
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = "Generation in progress — leaving will pause until you resume.";
+    };
+    window.addEventListener("beforeunload", warn);
+
+    if (navigator.wakeLock?.request) {
+      navigator.wakeLock.request("screen").then((lock) => {
+        wakeLockRef.current = lock;
+      }).catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      wakeLockRef.current?.release?.();
+    };
+  }, [busy]);
+
   async function collectGenerationPayment() {
     setPaying(true);
     try {
@@ -110,29 +175,61 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     }
   }
 
+  async function runGeneration({ regenerate = false } = {}) {
+    if (!user?.id) throw new Error("Not authenticated");
+
+    const paymentTxHash = await collectGenerationPayment();
+
+    await supabase
+      .from("projects")
+      .update({
+        edition_size: effectiveSize,
+        name_prefix: project.name_prefix,
+        base_uri: project.base_uri,
+      })
+      .eq("id", projectId);
+
+    if (regenerate && job?.id) {
+      await clearEditionsForJob(job.id);
+    }
+
+    setResults([]);
+    setRarity(null);
+
+    const newJob = await startClientGeneration({
+      projectId,
+      userId: user.id,
+      editionSize: effectiveSize,
+      paymentTxHash,
+      regenerate,
+      onProgress: ({ completed }) => {
+        setJob((prev) => (prev ? { ...prev, progress: completed, status: "running" } : prev));
+      },
+      onEditionPreview: (edition) => {
+        setResults((prev) => [...prev, edition].slice(-LIVE_PREVIEW_LIMIT));
+      },
+      onComplete: async ({ jobId }) => {
+        const { data: fresh } = await supabase
+          .from("generation_jobs")
+          .select("*")
+          .eq("id", jobId)
+          .single();
+        if (fresh) setJob(fresh);
+        setResults([]);
+        onUpdate?.();
+      },
+      onError: (err) => setError(err.message),
+    });
+
+    setJob(newJob);
+    onUpdate?.();
+  }
+
   async function startGeneration() {
     setGenerating(true);
     setError(null);
-    setRarity(null);
     try {
-      const paymentTxHash = await collectGenerationPayment();
-
-      await supabase
-        .from("projects")
-        .update({
-          edition_size: effectiveSize,
-          name_prefix: project.name_prefix,
-          base_uri: project.base_uri,
-        })
-        .eq("id", projectId);
-
-      // If a previous (failed) job exists, clear its partial output first.
-      const result = job
-        ? await api.regenerate(projectId, effectiveSize, paymentTxHash)
-        : await api.generate(projectId, effectiveSize, paymentTxHash);
-      setJob(result.job);
-      setResults([]);
-      onUpdate?.();
+      await runGeneration({ regenerate: !!job });
     } catch (err) {
       const msg = err?.message || String(err);
       if (/user rejected|cancelled|canceled|denied/i.test(msg)) {
@@ -149,15 +246,8 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     setDownloading(true);
     setError(null);
     try {
-      const { blob, filename } = await api.downloadJob(job.id);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename || "collection.zip";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      const blob = await buildCollectionZip(job.id);
+      triggerDownload(blob, `${project?.name_prefix || "collection"}.zip`);
     } catch (err) {
       setError(err.message);
     }
@@ -170,7 +260,11 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     setUriUpdated(false);
     setError(null);
     try {
-      await api.updateUri(job.id, { baseUri });
+      await updateCollectionUriClient(job.id, baseUri);
+      await supabase
+        .from("projects")
+        .update({ base_uri: baseUri })
+        .eq("id", projectId);
       setUriUpdated(true);
       onUpdate?.();
     } catch (err) {
@@ -184,7 +278,13 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     setLoadingRarity(true);
     setError(null);
     try {
-      const result = await api.rarity(job.id);
+      const { data: editions } = await supabase
+        .from("generated_editions")
+        .select("metadata")
+        .eq("job_id", job.id);
+      const result = computeRarityFromMetadata(
+        (editions || []).map((e) => e.metadata)
+      );
       setRarity(result);
     } catch (err) {
       setError(err.message);
@@ -192,54 +292,12 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     setLoadingRarity(false);
   }
 
-  // During generation only: fetch the 10 most recent WebP thumbs (no full PNGs).
-  async function fetchLivePreview() {
-    if (!job?.id) return;
-    setLoadingResults(true);
-    try {
-      const { editions } = await api.getEditions(job.id, {
-        limit: LIVE_PREVIEW_LIMIT,
-        latest: true,
-        thumbsOnly: true,
-      });
-      setResults(editions);
-    } catch {
-      // ignore transient errors while generating
-    }
-    setLoadingResults(false);
-  }
-
-  useEffect(() => {
-    if (!job?.id || !livePreview) {
-      if (job?.status === "complete") setResults([]);
-      return;
-    }
-    fetchLivePreview();
-    const id = setInterval(fetchLivePreview, 15000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job?.id, job?.status, job?.progress, livePreview]);
-
   async function handleRegenerate() {
     setRegenerating(true);
     setError(null);
     try {
-      const paymentTxHash = await collectGenerationPayment();
-
-      await supabase
-        .from("projects")
-        .update({ edition_size: effectiveSize })
-        .eq("id", projectId);
-      const result = await api.regenerate(
-        projectId,
-        effectiveSize,
-        paymentTxHash
-      );
-      setJob(result.job);
-      setResults([]);
-      setRarity(null);
+      await runGeneration({ regenerate: true });
       setConfirmRegen(false);
-      onUpdate?.();
     } catch (err) {
       const msg = err?.message || String(err);
       if (/user rejected|cancelled|canceled|denied/i.test(msg)) {
@@ -260,6 +318,12 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     <div className="space-y-5">
       <div className="bezel-outer">
         <div className="bezel-inner p-8 space-y-6">
+          {busy && (
+            <p className="text-xs text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+              Rendering in your browser — keep this tab open. Editions are saved locally for download; nothing is uploaded to cloud storage.
+            </p>
+          )}
+
           {hasConfigs ? (
             <div>
               <label className="text-xs text-zinc-500 block mb-1">Edition size</label>
@@ -302,11 +366,9 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
           {!paymentDisabled && (
             <p className="text-xs text-zinc-500">
               Generation fee:{" "}
-              <span className="text-zinc-300">
-                {generationCharge.displayAmount}
-              </span>{" "}
-              ({generationCharge.buckets} × 100 editions @ 0.5 USDC). Paid to
-              HODL Token Club treasury via wallet on Generate / Re-generate.
+              <span className="text-zinc-300">{generationCharge.displayAmount}</span>{" "}
+              ({generationCharge.buckets} × 100 editions @ 0.5 USDC). Paid to HODL Token Club
+              treasury via wallet on Generate / Re-generate.
             </p>
           )}
 
@@ -336,7 +398,7 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                   className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
                 >
                   <DownloadSimple size={18} weight="bold" />
-                  {downloading ? "Preparing zip..." : "Download collection (.zip)"}
+                  {downloading ? "Building zip..." : "Download collection (.zip)"}
                 </button>
                 <button
                   onClick={() => setConfirmRegen(true)}
@@ -348,14 +410,14 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                 </button>
               </div>
               <p className="text-[11px] text-zinc-600">
-                Full-resolution PNGs and JSON metadata packaged in one zip — browse locally after download.
+                PNGs and JSON are packaged from your browser cache — not stored in the cloud.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-400">
-                  {job.status === "queued" ? "Queued..." : "Generating..."}
+                  {job.status === "queued" ? "Queued..." : "Generating in browser..."}
                 </span>
                 <span className="text-white">
                   {job.progress} / {job.edition_size}
@@ -384,15 +446,12 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
               <h3 className="text-sm font-semibold text-white">Live preview</h3>
               <p className="text-xs text-zinc-500 mt-1">
                 Latest {LIVE_PREVIEW_LIMIT} editions while generating — small WebP previews only.
-                Download the full collection when complete to browse every piece locally.
               </p>
             </div>
 
             {results.length === 0 ? (
               <p className="text-sm text-zinc-600 py-8 text-center">
-                {loadingResults
-                  ? "Loading preview…"
-                  : "Previews appear here as editions are rendered."}
+                Previews appear here as editions are rendered.
               </p>
             ) : (
               <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
@@ -428,15 +487,11 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
             <div className="bezel-inner p-8 space-y-4">
               <div className="flex items-center gap-2">
                 <LinkSimple size={18} className="text-emerald-400" />
-                <h3 className="text-sm font-semibold text-white">
-                  Update IPFS / base URI
-                </h3>
+                <h3 className="text-sm font-semibold text-white">Update IPFS / base URI</h3>
               </div>
               <p className="text-xs text-zinc-500">
-                Replace the placeholder URI after you've pinned your images to
-                IPFS. Every metadata JSON's <code className="text-zinc-400">image</code>{" "}
-                field is rewritten to{" "}
-                <code className="text-zinc-400">{"{baseUri}/{edition}.png"}</code>.
+                Replace the placeholder URI after pinning to IPFS. Metadata is updated locally
+                and in the database — re-download for the zip with new URIs.
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
@@ -490,13 +545,8 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                       </p>
                       <div className="space-y-1.5">
                         {layer.values.map((v) => (
-                          <div
-                            key={v.value}
-                            className="flex items-center gap-3 text-xs"
-                          >
-                            <span className="w-32 truncate text-zinc-400">
-                              {v.value}
-                            </span>
+                          <div key={v.value} className="flex items-center gap-3 text-xs">
+                            <span className="w-32 truncate text-zinc-400">{v.value}</span>
                             <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-emerald-500/70"
@@ -532,23 +582,16 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
                 <span className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-amber-500/10 text-amber-400">
                   <Warning size={20} weight="fill" />
                 </span>
-                <h3 className="text-lg font-semibold text-white">
-                  Re-generate collection
-                </h3>
+                <h3 className="text-lg font-semibold text-white">Re-generate collection</h3>
               </div>
               <p className="text-sm text-zinc-400">
-                This deletes the current generated editions and their files, then
-                creates a brand-new set from your latest layers, rules and
-                settings. This keeps the database clean but cannot be undone.
+                This clears the current job metadata and local edition cache, then creates a
+                brand-new set. Cannot be undone.
               </p>
               {!paymentDisabled && (
                 <p className="text-sm text-zinc-500">
                   Fee for this run:{" "}
-                  <span className="text-zinc-300">
-                    {generationCharge.displayAmount}
-                  </span>{" "}
-                  — your wallet will open to confirm payment before
-                  re-generation starts.
+                  <span className="text-zinc-300">{generationCharge.displayAmount}</span>
                 </p>
               )}
               {error && <p className="text-sm text-red-400">{error}</p>}

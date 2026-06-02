@@ -1,40 +1,15 @@
-# Render Blueprint — HODL Artwork Generator API
-# Deploy: Render Dashboard → New → Blueprint → pick this repo.
-# Set the `sync: false` secrets in the dashboard after the service is created.
+# Render deployment is deprecated — generation runs in the browser.
+# You can delete the hodl-artwork-api service on Render to save ~$25/mo.
+#
+# If you still deploy this stub, it only serves GET /health.
 services:
   - type: web
-    name: hodl-artwork-api
+    name: hodl-artwork-api-deprecated
     runtime: node
-    plan: starter # always-on (Free tier sleeps and would pause the job worker)
-    region: frankfurt # closest to EU; matches your eu-central setup
-    branch: main
-    # Install only the engine + api workspaces (skips the heavy web app and its
-    # peer-dep conflicts). Workspaces auto-link @basturds/engine for the API.
-    buildCommand: npm install -w packages/engine -w apps/api --include-workspace-root
-    startCommand: npm start --workspace=apps/api
-    healthCheckPath: /health
-    autoDeploy: true
+    plan: free
+    autoDeploy: false
+    buildCommand: npm install
+    startCommand: npm run start --workspace=apps/api
     envVars:
-      # Node 22+ required: @supabase/supabase-js (realtime-js) needs a native
-      # global WebSocket, which Node 20 lacks.
-      - key: NODE_VERSION
-        value: "22.11.0"
       - key: NODE_ENV
         value: production
-      # Heavy canvas rendering on 0.5 CPU / 512 MB: keep one job at a time.
-      - key: MAX_CONCURRENT_JOBS
-        value: "1"
-      # Mount a Render persistent disk and set ASSET_CACHE_DIR in the dashboard
-      # (e.g. /var/data/hodl-cache) so trait files survive restarts.
-      - key: ASSET_CACHE_DIR
-        sync: false
-      - key: MAX_EDITION_SIZE
-        value: "10000"
-      # --- Secrets: set these in the Render dashboard (never commit them) ---
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      # Your Netlify URL, e.g. https://hodl-artwork-generator.netlify.app
-      - key: FRONTEND_URL
-        sync: false

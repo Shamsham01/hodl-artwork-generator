@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Shuffle, Eye, Stack } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
-import { api } from "../lib/api";
+import { renderSingle } from "@basturds/engine-browser";
+import {
+  loadProjectConfig,
+  filterLayersForJob,
+} from "../lib/projectConfig.js";
+import { buildTraitsByLayerForPreview } from "../lib/clientGeneration.js";
+import { useAuth } from "../context/AuthContext";
 
 function layersForConfig(config, allLayers) {
   const order = Array.isArray(config?.layers_order) ? config.layers_order : [];
@@ -18,6 +24,7 @@ function defaultSelections(layerList) {
 }
 
 export default function PreviewPanel({ projectId }) {
+  const { user } = useAuth();
   const [layers, setLayers] = useState([]);
   const [configs, setConfigs] = useState([]);
   const [activeConfigId, setActiveConfigId] = useState(null);
@@ -100,24 +107,60 @@ export default function PreviewPanel({ projectId }) {
   }
 
   async function generatePreview() {
-    if (previewInFlight.current) return;
+    if (previewInFlight.current || !user?.id) return;
     previewInFlight.current = true;
     setLoading(true);
     setError(null);
     try {
-      const result = await api.preview(
-        projectId,
-        selections,
-        activeConfigId || undefined
+      const previewLayerNames = visibleLayers.map((l) => l.name);
+      const { layers: dbLayers, traitsByLayerId, config } =
+        await loadProjectConfig(projectId, user.id, { previewLayerNames });
+
+      let jobConfig = config;
+      if (activeConfigId) {
+        const { data: lc } = await supabase
+          .from("layer_configurations")
+          .select("layers_order")
+          .eq("id", activeConfigId)
+          .single();
+        if (lc?.layers_order) {
+          const order = lc.layers_order.map((entry) => {
+            const name = typeof entry === "string" ? entry : entry.name;
+            const match = dbLayers.find((l) => l.name === name);
+            return match ? { name, options: match.options || {} } : null;
+          }).filter(Boolean);
+          jobConfig = {
+            ...config,
+            layerConfigurations: [{ growEditionSizeTo: 1, layersOrder: order }],
+          };
+        }
+      }
+
+      const { layers: jobLayers, traitsByLayerId: jobTraits } = filterLayersForJob(
+        dbLayers,
+        traitsByLayerId,
+        jobConfig
       );
-      setPreview(result);
+
+      const traitsByLayer = await buildTraitsByLayerForPreview(jobLayers, jobTraits);
+
+      const result = await renderSingle(jobConfig, {
+        traitsByLayer,
+        selectedTraits: selections,
+        edition: 1,
+      });
+
+      const buffer = await result.blob.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const image = btoa(binary);
+
+      setPreview({ image, attributes: result.attributes });
     } catch (err) {
-      const msg = err.message || "Preview failed";
-      setError(
-        msg.includes("fetch") || msg === "Failed to fetch"
-          ? "Preview timed out or the server restarted — wait a moment and try again."
-          : msg
-      );
+      setError(err.message || "Preview failed");
     }
     previewInFlight.current = false;
     setLoading(false);

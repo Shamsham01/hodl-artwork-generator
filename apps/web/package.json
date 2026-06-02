@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@basturds/engine-browser": "file:../../packages/engine-browser",
+    "@basturds/engine-core": "file:../../packages/engine-core",
     "@fontsource/geist-sans": "^5.2.5",
     "@multiversx/sdk-core": "^15.3.2",
     "@multiversx/sdk-dapp": "5.2.9",
@@ -16,6 +18,7 @@
     "@multiversx/sdk-wallet": "^4.6.0",
     "@phosphor-icons/react": "^2.1.7",
     "@supabase/supabase-js": "^2.49.1",
+    "fflate": "^0.8.2",
     "motion": "^12.4.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
