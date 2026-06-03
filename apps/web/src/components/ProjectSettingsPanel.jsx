@@ -221,14 +221,19 @@ export default function ProjectSettingsPanel({ project, onUpdate }) {
             />
           </Field>
         </div>
+        <p className="text-[11px] text-zinc-600">
+          Canvas size applies to final collection generation and download. Preview
+          on the Preview tab always renders at 512×512 using lightweight trait
+          thumbs to save bandwidth.
+        </p>
         <Toggle
           label="Image smoothing (anti-aliasing)"
           checked={gen.smoothing}
           onChange={(v) => setGenField("smoothing", v)}
         />
         <p className="text-[11px] text-zinc-600">
-          PNG art and JSON metadata are saved together in one folder and
-          downloadable as a single zip after generation.
+          Generation runs in your browser; finished PNGs and metadata are kept
+          locally until you download the collection zip from the Generate tab.
         </p>
       </Section>
 
@@ -271,6 +276,11 @@ export default function ProjectSettingsPanel({ project, onUpdate }) {
       </Section>
 
       <Section title="Text overlay">
+        <p className="text-[11px] text-zinc-600 leading-relaxed">
+          Optional debug mode. When enabled, each layer is drawn as text (layer
+          name and trait name) instead of artwork — useful for checking layer
+          order, not for normal NFT output. Leave off for real images.
+        </p>
         <Toggle
           label="Render text labels only (no art)"
           checked={gen.text.only}

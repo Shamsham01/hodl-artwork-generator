@@ -3,6 +3,30 @@ import { supabase } from "../lib/supabase";
 import { fetchTraitPreviewBlobUrl, revokeBlobUrl } from "../lib/traitPreviews";
 import { ensureTraitThumb } from "../lib/traitThumbs";
 
+const DEFAULT_TRAIT_WEIGHT = 100;
+
+function sortTraitsStable(traits) {
+  return [...traits].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+  );
+}
+
+function enrichLayer(layer, traitData) {
+  const traits = sortTraitsStable(
+    (traitData || []).filter((t) => t.layer_id === layer.id)
+  );
+  const totalWeight = traits.reduce((s, t) => s + t.weight, 0);
+  return {
+    ...layer,
+    traits: traits.map((t) => ({
+      ...t,
+      percentage:
+        totalWeight > 0 ? ((t.weight / totalWeight) * 100).toFixed(1) : "0",
+    })),
+    totalWeight,
+  };
+}
+
 export default function TraitMatrix({ projectId }) {
   const [layers, setLayers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,27 +54,43 @@ export default function TraitMatrix({ projectId }) {
       .select("*")
       .in("layer_id", layerData.map((l) => l.id));
 
-    const enriched = layerData.map((layer) => {
-      const traits = (traitData || []).filter((t) => t.layer_id === layer.id);
-      const totalWeight = traits.reduce((s, t) => s + t.weight, 0);
-      return {
-        ...layer,
-        traits: traits.map((t) => ({
-          ...t,
-          percentage: totalWeight > 0 ? ((t.weight / totalWeight) * 100).toFixed(1) : "0",
-        })),
-        totalWeight,
-      };
-    });
-
-    setLayers(enriched);
+    setLayers(layerData.map((layer) => enrichLayer(layer, traitData)));
     setLoading(false);
   }
 
   async function updateWeight(traitId, weight) {
+    const w = Math.max(1, parseInt(weight, 10) || DEFAULT_TRAIT_WEIGHT);
     setSaving(traitId);
-    await supabase.from("traits").update({ weight: parseInt(weight, 10) || 1 }).eq("id", traitId);
-    await loadTraits();
+
+    const { error } = await supabase
+      .from("traits")
+      .update({ weight: w })
+      .eq("id", traitId);
+
+    if (error) {
+      setSaving(null);
+      return;
+    }
+
+    setLayers((prev) =>
+      prev.map((layer) => {
+        const traits = sortTraitsStable(
+          layer.traits.map((t) => (t.id === traitId ? { ...t, weight: w } : t))
+        );
+        const totalWeight = traits.reduce((s, t) => s + t.weight, 0);
+        return {
+          ...layer,
+          traits: traits.map((t) => ({
+            ...t,
+            percentage:
+              totalWeight > 0
+                ? ((t.weight / totalWeight) * 100).toFixed(1)
+                : "0",
+          })),
+          totalWeight,
+        };
+      })
+    );
     setSaving(null);
   }
 

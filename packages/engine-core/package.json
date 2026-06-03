@@ -1,7 +1,7 @@
 {
   "name": "@basturds/engine-core",
   "version": "1.0.0",
-  "description": "Pure JS HashLips engine (DNA, metadata, layers)",
+  "description": "HODL Art Engine core (DNA, metadata, layers)",
   "type": "module",
   "main": "./src/index.js",
   "exports": {

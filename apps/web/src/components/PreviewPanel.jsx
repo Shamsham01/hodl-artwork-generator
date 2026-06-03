@@ -10,6 +10,7 @@ import {
   buildTraitsByLayerForCompositor,
   buildTraitsByLayerForPreview,
 } from "../lib/clientGeneration.js";
+import { jobConfigForPreview } from "../lib/previewConfig.js";
 import { useAuth } from "../context/AuthContext";
 
 const PREVIEW_COUNT = 4;
@@ -168,19 +169,13 @@ export default function PreviewPanel({ projectId }) {
     setRandomPreviews([]);
 
     try {
-      const { project, jobConfig, jobLayers, jobTraits } = await resolveJobConfig();
-      const traitsByLayer = await buildTraitsByLayerForCompositor(
-        jobLayers,
-        jobTraits,
-        {
-          canvasWidth: project.canvas_width,
-          canvasHeight: project.canvas_height,
-        }
-      );
+      const { jobConfig, jobLayers, jobTraits } = await resolveJobConfig();
+      const traitsByLayer = await buildTraitsByLayerForCompositor(jobLayers, jobTraits);
+      const previewConfig = jobConfigForPreview(jobConfig);
 
       const results = [];
       for (let i = 0; i < PREVIEW_COUNT; i++) {
-        const result = await renderSingle(jobConfig, {
+        const result = await renderSingle(previewConfig, {
           traitsByLayer,
           edition: i + 1,
         });
@@ -205,15 +200,14 @@ export default function PreviewPanel({ projectId }) {
     setSingleError(null);
 
     try {
-      const { project, jobConfig, jobLayers, jobTraits } = await resolveJobConfig();
+      const { jobConfig, jobLayers, jobTraits } = await resolveJobConfig();
       const traitsByLayer = await buildTraitsByLayerForPreview(
         jobLayers,
         jobTraits,
-        selections,
-        project
+        selections
       );
 
-      const result = await renderSingle(jobConfig, {
+      const result = await renderSingle(jobConfigForPreview(jobConfig), {
         traitsByLayer,
         selectedTraits: selections,
         edition: 1,

@@ -74,7 +74,7 @@ export default function FolderUpload({ projectId, onComplete }) {
             layerName,
             filename,
             storagePath,
-            weight: weightMatch ? parseInt(weightMatch[1], 10) : 1,
+            weight: weightMatch ? parseInt(weightMatch[1], 10) : 100,
           });
         }
 

@@ -1,7 +1,7 @@
 export const getRarityWeight = (str, rarityDelimiter = "#") => {
   const nameWithoutExtension = str.slice(0, -4);
   let weight = Number(nameWithoutExtension.split(rarityDelimiter).pop());
-  if (isNaN(weight)) weight = 1;
+  if (isNaN(weight)) weight = 100;
   return weight;
 };
 

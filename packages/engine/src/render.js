@@ -227,7 +227,7 @@ const renderBatch = async (config, options = {}) => {
   }
 
   const layerConfigurations = config.layerConfigurations;
-  // growEditionSizeTo is cumulative across configurations (HashLips behaviour).
+  // growEditionSizeTo is cumulative across configurations.
   const totalEditions =
     layerConfigurations[layerConfigurations.length - 1].growEditionSizeTo;
   const startIndex = network === NETWORK.sol ? 0 : 1;

@@ -1,5 +1,5 @@
 # ── Project-specific (HODL Artwork Generator) ──
-# Local HashLips sample art (~585 MB). Users upload their own layers to
+# Local sample art (~585 MB). Users upload their own layers to
 # Supabase storage in the hosted app, so this is not needed for deployment.
 layers/
 # Generated CLI output

@@ -17,6 +17,7 @@ import {
 import { downloadLayerAsset } from "./storageDownload.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+/** Full-resolution trait PNGs for final collection generation only. */
 function traitDownloadFnForCanvas(project) {
   const w = project?.canvas_width ?? 512;
   const h = project?.canvas_height ?? 512;
@@ -408,17 +409,9 @@ export async function resumeClientGeneration({
   });
 }
 
-export async function buildTraitsByLayerForCompositor(
-  layers,
-  traitsByLayerId,
-  { canvasWidth = 512, canvasHeight = 512 } = {}
-) {
+export async function buildTraitsByLayerForCompositor(layers, traitsByLayerId) {
   const allTraits = layers.flatMap((l) => traitsByLayerId[l.id] || []);
-  const downloadFn =
-    canvasWidth <= 512 && canvasHeight <= 512
-      ? downloadTraitForPreview
-      : downloadTraitFromStorage;
-  await ensureTraitsCached(allTraits, downloadFn);
+  await ensureTraitsCached(allTraits, downloadTraitForPreview);
 
   const traitsByLayer = {};
   for (const layer of layers) {
@@ -446,8 +439,7 @@ export async function buildTraitsByLayerForCompositor(
 export async function buildTraitsByLayerForPreview(
   layers,
   traitsByLayerId,
-  selectedTraits = null,
-  project = null
+  selectedTraits = null
 ) {
   const traitsByLayer = {};
 
@@ -462,10 +454,7 @@ export async function buildTraitsByLayerForPreview(
     }
   }
 
-  const downloadFn = project
-    ? traitDownloadFnForCanvas(project)
-    : downloadTraitForPreview;
-  await ensureTraitsCached(traitsToFetch, downloadFn);
+  await ensureTraitsCached(traitsToFetch, downloadTraitForPreview);
 
   for (const layer of layers) {
     const traits = traitsByLayerId[layer.id] || [];

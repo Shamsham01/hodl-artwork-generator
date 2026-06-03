@@ -540,7 +540,7 @@ async function streamDownloadZip(jobId, userId, res) {
 /**
  * Re-point a generated collection at a new IPFS / base URI (and optionally
  * rename / re-describe it), rewriting every metadata JSON in storage and DB.
- * Mirrors the HashLips utils/update_info.js script.
+ * Batch-update image URIs in edition metadata (legacy update_info flow).
  */
 async function updateCollectionUri(jobId, userId, { baseUri, namePrefix, description }) {
   const { data: job } = await supabase

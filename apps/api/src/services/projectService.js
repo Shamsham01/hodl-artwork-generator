@@ -130,7 +130,7 @@ async function loadProjectConfig(projectId, userId, options = {}) {
   }));
 
   // Build the layerConfigurations array (multiple "characters"). Each config
-  // grows the collection cumulatively, mirroring HashLips' config.js. Falls
+  // grows the collection cumulatively (legacy multi-character config). Falls
   // back to a single configuration over all layers for legacy projects.
   let layerConfigurations;
   let totalEditions;

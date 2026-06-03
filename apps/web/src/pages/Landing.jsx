@@ -95,7 +95,7 @@ const FEATURES = [
   {
     icon: Shuffle,
     title: "Rule-based generation",
-    body: "Define incompatibilities and exclusions so conflicting traits never appear together — the same proven logic as the HashLips engine.",
+    body: "Define incompatibilities and exclusions so conflicting traits never appear together — proven layer-restriction logic built into the generator.",
     span: "lg:col-span-3",
   },
   {
@@ -401,8 +401,17 @@ export default function Landing() {
             <p className="text-xs text-zinc-600">
               © {new Date().getFullYear()} HODL Token Club. All rights reserved.
             </p>
-            <p className="text-xs text-zinc-600">
-              Built for MultiversX creators.
+            <p className="text-xs text-zinc-600 text-center sm:text-right">
+              Built for MultiversX creators. Inspired by the open-source{" "}
+              <a
+                href="https://github.com/HashLips/hashlips_art_engine"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-500 hover:text-zinc-400 underline underline-offset-2"
+              >
+                HashLips Art Engine
+              </a>
+              .
             </p>
           </div>
         </div>

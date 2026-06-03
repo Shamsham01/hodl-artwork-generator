@@ -23,7 +23,7 @@ export const buildMetadata = (config, dna, edition, attributes) => {
     date: dateTime,
     ...extraMetadata,
     attributes,
-    compiler: "HashLips Art Engine",
+    compiler: "HODL Art Engine",
   };
 
   if (network === NETWORK.sol) {
