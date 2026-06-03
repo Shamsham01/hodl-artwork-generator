@@ -189,32 +189,58 @@ export default function PreviewPanel({ projectId }) {
   }
 
   return (
-    <div className="grid lg:grid-cols-2 gap-8">
+    <div className="space-y-6 w-full">
       <div className="space-y-4">
-        {configs.length > 0 && (
-          <div>
-            <label className="text-xs text-zinc-500 block mb-1">Character</label>
-            <div className="relative">
-              <Stack
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
-              />
-              <select
-                value={activeConfigId || ""}
-                onChange={(e) => handleConfigChange(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white"
-              >
-                {configs.map((c, i) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label || `Character ${i + 1}`}
-                  </option>
-                ))}
-              </select>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          {configs.length > 0 && (
+            <div className="w-full sm:max-w-xs">
+              <label className="text-xs text-zinc-500 block mb-1">Character</label>
+              <div className="relative">
+                <Stack
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
+                />
+                <select
+                  value={activeConfigId || ""}
+                  onChange={(e) => handleConfigChange(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white"
+                >
+                  {configs.map((c, i) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label || `Character ${i + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <p className="text-[11px] text-zinc-600 mt-1.5">
-              Only layers assigned to this character are shown, in back → front order.
-            </p>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => generatePreviews({ random: true, count: PREVIEW_COUNT })}
+              disabled={loading || visibleLayers.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              <Eye size={18} weight="bold" />
+              {loading
+                ? "Rendering..."
+                : `Preview ${PREVIEW_COUNT} random`}
+            </button>
+            <button
+              onClick={() => generatePreviews({ random: false, count: 1 })}
+              disabled={loading || visibleLayers.length === 0}
+              className="rounded-full border border-zinc-700 px-5 py-2.5 text-sm text-zinc-300 hover:border-emerald-500/40 hover:text-emerald-400 transition-colors disabled:opacity-50"
+            >
+              Current selections
+            </button>
           </div>
+        </div>
+
+        {configs.length > 0 && (
+          <p className="text-[11px] text-zinc-600">
+            Layers below follow this character, back → front. Previews use your restriction
+            rules.
+          </p>
         )}
 
         {visibleLayers.length === 0 ? (
@@ -222,92 +248,70 @@ export default function PreviewPanel({ projectId }) {
             No layers selected for this character. Add layers on the Layers tab.
           </p>
         ) : (
-          visibleLayers.map((layer) => (
-            <div key={layer.id}>
-              <label className="text-xs text-zinc-500 block mb-1">{layer.name}</label>
-              <select
-                value={selections[layer.name] || ""}
-                onChange={(e) =>
-                  setSelections((prev) => ({ ...prev, [layer.name]: e.target.value }))
-                }
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
-              >
-                {layer.traits.map((t) => (
-                  <option key={t.id} value={t.name}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))
-        )}
-
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={() => generatePreviews({ random: true, count: PREVIEW_COUNT })}
-            disabled={loading || visibleLayers.length === 0}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            <Eye size={18} weight="bold" />
-            {loading
-              ? "Rendering..."
-              : `Preview ${PREVIEW_COUNT} random editions`}
-          </button>
-          <button
-            onClick={() => generatePreviews({ random: false, count: 1 })}
-            disabled={loading || visibleLayers.length === 0}
-            className="w-full rounded-full border border-zinc-700 px-6 py-2.5 text-sm text-zinc-300 hover:border-emerald-500/40 hover:text-emerald-400 transition-colors disabled:opacity-50"
-          >
-            Preview current selections
-          </button>
-        </div>
-
-        {error && <p className="text-sm text-red-400">{error}</p>}
-      </div>
-
-      <div className="space-y-4">
-        {previews.length === 0 ? (
-          <div className="bezel-outer">
-            <div className="bezel-inner aspect-square flex items-center justify-center overflow-hidden">
-              <p className="text-sm text-zinc-600 text-center px-6">
-                Click preview to render {PREVIEW_COUNT} random editions using your
-                restriction rules.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div
-            className={`grid gap-3 ${
-              previews.length > 1 ? "grid-cols-2" : "grid-cols-1"
-            }`}
-          >
-            {previews.map((preview, index) => (
-              <div key={index} className="space-y-2">
-                <div className="bezel-outer">
-                  <div className="bezel-inner aspect-square flex items-center justify-center overflow-hidden">
-                    <img
-                      src={preview.image}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                </div>
-                {preview.attributes?.length > 0 && (
-                  <ul className="flex flex-wrap gap-1.5">
-                    {preview.attributes.map((a) => (
-                      <li key={`${index}-${a.trait_type}-${a.value}`}>
-                        <span className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-400">
-                          {a.trait_type}: {a.value}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {visibleLayers.map((layer) => (
+              <div key={layer.id}>
+                <label className="text-xs text-zinc-500 block mb-1 truncate">
+                  {layer.name}
+                </label>
+                <select
+                  value={selections[layer.name] || ""}
+                  onChange={(e) =>
+                    setSelections((prev) => ({ ...prev, [layer.name]: e.target.value }))
+                  }
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                >
+                  {layer.traits.map((t) => (
+                    <option key={t.id} value={t.name}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             ))}
           </div>
         )}
+
+        {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
+
+      {previews.length === 0 ? (
+        <div className="bezel-outer">
+          <div className="bezel-inner aspect-[2/1] min-h-[200px] flex items-center justify-center">
+            <p className="text-sm text-zinc-600 text-center px-6">
+              Run preview to render {PREVIEW_COUNT} random editions across the full width
+              below.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+          {previews.map((preview, index) => (
+            <div key={index} className="space-y-1.5 min-w-0">
+              <div className="bezel-outer">
+                <div className="bezel-inner aspect-square flex items-center justify-center overflow-hidden">
+                  <img
+                    src={preview.image}
+                    alt={`Preview ${index + 1}`}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+              {preview.attributes?.length > 0 && (
+                <ul className="flex flex-wrap gap-1">
+                  {preview.attributes.map((a) => (
+                    <li key={`${index}-${a.trait_type}-${a.value}`}>
+                      <span className="text-[10px] leading-tight px-1.5 py-0.5 rounded bg-zinc-800/90 text-zinc-500">
+                        <span className="text-zinc-600">{a.trait_type}:</span> {a.value}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
