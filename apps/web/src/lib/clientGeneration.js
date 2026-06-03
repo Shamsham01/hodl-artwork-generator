@@ -13,12 +13,17 @@ import {
 } from "./traitCache.js";
 import {
   clearProjectGenerationsClient,
-  uploadPreviewThumb,
 } from "./projectActions.js";
 import { downloadLayerAsset } from "./storageDownload.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const LIVE_PREVIEW_KEEP = 20;
+function traitDownloadFnForCanvas(project) {
+  const w = project?.canvas_width ?? 512;
+  const h = project?.canvas_height ?? 512;
+  return w <= 512 && h <= 512
+    ? downloadTraitForPreview
+    : downloadTraitFromStorage;
+}
 
 let activeWorker = null;
 let activeJobId = null;
@@ -92,8 +97,8 @@ function traitDefsForWorker(layers, traitsByLayerId) {
   return traitDefsByLayer;
 }
 
-async function cacheAllTraits(traits) {
-  await ensureTraitsCached(traits, downloadTraitFromStorage);
+async function cacheAllTraits(traits, downloadFn = downloadTraitFromStorage) {
+  await ensureTraitsCached(traits, downloadFn);
 }
 
 function terminateWorker() {
@@ -138,7 +143,7 @@ export async function startClientGeneration({
   );
 
   const allTraits = jobLayers.flatMap((l) => jobTraits[l.id] || []);
-  await cacheAllTraits(allTraits);
+  await cacheAllTraits(allTraits, traitDownloadFnForCanvas(project));
 
   const job = await callVerifyGeneration({
     projectId,
@@ -164,7 +169,7 @@ export async function startClientGeneration({
   );
   activeWorker = worker;
 
-  const previewPaths = [];
+  const livePreviewUrls = [];
 
   worker.onmessage = async (event) => {
     const msg = event.data;
@@ -200,23 +205,10 @@ export async function startClientGeneration({
 
       let previewUrl = null;
       if (msg.thumbBlob) {
-        const path = await uploadPreviewThumb(
-          userId,
-          projectId,
-          job.id,
-          msg.edition,
-          msg.thumbBlob
-        );
-        if (path) {
-          previewPaths.push(path);
-          while (previewPaths.length > LIVE_PREVIEW_KEEP) {
-            const old = previewPaths.shift();
-            await supabase.storage.from("layer-assets").remove([old]);
-          }
-          const { data: signed } = await supabase.storage
-            .from("layer-assets")
-            .createSignedUrl(path, 3600);
-          previewUrl = signed?.signedUrl;
+        previewUrl = URL.createObjectURL(msg.thumbBlob);
+        livePreviewUrls.push(previewUrl);
+        while (livePreviewUrls.length > 20) {
+          URL.revokeObjectURL(livePreviewUrls.shift());
         }
       }
 
@@ -321,7 +313,7 @@ export async function resumeClientGeneration({
   );
 
   const allTraits = jobLayers.flatMap((l) => jobTraits[l.id] || []);
-  await cacheAllTraits(allTraits);
+  await cacheAllTraits(allTraits, traitDownloadFnForCanvas(project));
 
   activeJobId = job.id;
 
@@ -368,19 +360,7 @@ export async function resumeClientGeneration({
       }
       let previewUrl = null;
       if (msg.thumbBlob) {
-        const path = await uploadPreviewThumb(
-          userId,
-          projectId,
-          job.id,
-          msg.edition,
-          msg.thumbBlob
-        );
-        if (path) {
-          const { data: signed } = await supabase.storage
-            .from("layer-assets")
-            .createSignedUrl(path, 3600);
-          previewUrl = signed?.signedUrl;
-        }
+        previewUrl = URL.createObjectURL(msg.thumbBlob);
       }
       onEditionPreview?.({
         edition: msg.edition,
@@ -428,10 +408,46 @@ export async function resumeClientGeneration({
   });
 }
 
+export async function buildTraitsByLayerForCompositor(
+  layers,
+  traitsByLayerId,
+  { canvasWidth = 512, canvasHeight = 512 } = {}
+) {
+  const allTraits = layers.flatMap((l) => traitsByLayerId[l.id] || []);
+  const downloadFn =
+    canvasWidth <= 512 && canvasHeight <= 512
+      ? downloadTraitForPreview
+      : downloadTraitFromStorage;
+  await ensureTraitsCached(allTraits, downloadFn);
+
+  const traitsByLayer = {};
+  for (const layer of layers) {
+    const traits = traitsByLayerId[layer.id] || [];
+    traitsByLayer[layer.name] = [];
+    for (let i = 0; i < traits.length; i++) {
+      const t = traits[i];
+      const blob = await getTraitBlob(t.storage_path);
+      if (!blob) {
+        throw new Error(`Could not load "${t.name}" from cache.`);
+      }
+      traitsByLayer[layer.name].push({
+        id: i,
+        name: t.name,
+        filename: t.filename,
+        path: t.storage_path,
+        imageSource: blob,
+        weight: t.weight ?? 1,
+      });
+    }
+  }
+  return traitsByLayer;
+}
+
 export async function buildTraitsByLayerForPreview(
   layers,
   traitsByLayerId,
-  selectedTraits = null
+  selectedTraits = null,
+  project = null
 ) {
   const traitsByLayer = {};
 
@@ -441,12 +457,15 @@ export async function buildTraitsByLayerForPreview(
     if (selectedTraits?.[layer.name]) {
       const picked = traits.find((t) => t.name === selectedTraits[layer.name]);
       if (picked) traitsToFetch.push(picked);
-    } else if (traits.length) {
-      traitsToFetch.push(traits[0]);
+    } else {
+      traitsToFetch.push(...traits);
     }
   }
 
-  await ensureTraitsCached(traitsToFetch, downloadTraitForPreview);
+  const downloadFn = project
+    ? traitDownloadFnForCanvas(project)
+    : downloadTraitForPreview;
+  await ensureTraitsCached(traitsToFetch, downloadFn);
 
   for (const layer of layers) {
     const traits = traitsByLayerId[layer.id] || [];

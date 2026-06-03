@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Shuffle, Eye, Stack } from "@phosphor-icons/react";
+import { Eye, Stack } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 import { renderSingle } from "@basturds/engine-browser";
 import {
   loadProjectConfig,
   filterLayersForJob,
 } from "../lib/projectConfig.js";
-import { buildTraitsByLayerForPreview } from "../lib/clientGeneration.js";
+import {
+  buildTraitsByLayerForCompositor,
+  buildTraitsByLayerForPreview,
+} from "../lib/clientGeneration.js";
 import { useAuth } from "../context/AuthContext";
+
+const PREVIEW_COUNT = 4;
 
 function layersForConfig(config, allLayers) {
   const order = Array.isArray(config?.layers_order) ? config.layers_order : [];
@@ -23,13 +28,23 @@ function defaultSelections(layerList) {
   return next;
 }
 
+async function blobToDataUrl(blob) {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return `data:image/png;base64,${btoa(binary)}`;
+}
+
 export default function PreviewPanel({ projectId }) {
   const { user } = useAuth();
   const [layers, setLayers] = useState([]);
   const [configs, setConfigs] = useState([]);
   const [activeConfigId, setActiveConfigId] = useState(null);
   const [selections, setSelections] = useState({});
-  const [preview, setPreview] = useState(null);
+  const [previews, setPreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const previewInFlight = useRef(false);
@@ -69,7 +84,7 @@ export default function PreviewPanel({ projectId }) {
 
     const visible = firstConfig ? layersForConfig(firstConfig, enriched) : enriched;
     setSelections(defaultSelections(visible));
-    setPreview(null);
+    setPreviews([]);
   }
 
   const activeConfig = configs.find((c) => c.id === activeConfigId) || null;
@@ -83,95 +98,94 @@ export default function PreviewPanel({ projectId }) {
     const config = configs.find((c) => c.id === configId);
     setActiveConfigId(configId);
     setSelections(defaultSelections(layersForConfig(config, layers)));
-    setPreview(null);
+    setPreviews([]);
     setError(null);
   }
 
-  function randomize() {
-    const next = {};
-    visibleLayers.forEach((l) => {
-      if (l.traits.length) {
-        const totalWeight = l.traits.reduce((s, t) => s + t.weight, 0);
-        let random = Math.floor(Math.random() * totalWeight);
-        for (const t of l.traits) {
-          random -= t.weight;
-          if (random < 0) {
-            next[l.name] = t.name;
-            break;
-          }
-        }
-        if (!next[l.name]) next[l.name] = l.traits[l.traits.length - 1].name;
+  async function resolveJobConfig() {
+    const previewLayerNames = visibleLayers.map((l) => l.name);
+    const { project, layers: dbLayers, traitsByLayerId, config } =
+      await loadProjectConfig(projectId, user.id, { previewLayerNames });
+
+    let jobConfig = config;
+    if (activeConfigId) {
+      const { data: lc } = await supabase
+        .from("layer_configurations")
+        .select("layers_order")
+        .eq("id", activeConfigId)
+        .single();
+      if (lc?.layers_order) {
+        const order = lc.layers_order
+          .map((entry) => {
+            const name = typeof entry === "string" ? entry : entry.name;
+            const match = dbLayers.find((l) => l.name === name);
+            return match ? { name, options: match.options || {} } : null;
+          })
+          .filter(Boolean);
+        jobConfig = {
+          ...config,
+          layerConfigurations: [{ growEditionSizeTo: 1, layersOrder: order }],
+        };
       }
-    });
-    setSelections(next);
+    }
+
+    const { layers: jobLayers, traitsByLayerId: jobTraits } = filterLayersForJob(
+      dbLayers,
+      traitsByLayerId,
+      jobConfig
+    );
+
+    return { project, jobConfig, jobLayers, jobTraits };
   }
 
-  async function generatePreview() {
+  async function generatePreviews({ random = true, count = PREVIEW_COUNT } = {}) {
     if (previewInFlight.current || !user?.id) return;
     previewInFlight.current = true;
     setLoading(true);
     setError(null);
+    setPreviews([]);
+
     try {
-      const previewLayerNames = visibleLayers.map((l) => l.name);
-      const { layers: dbLayers, traitsByLayerId, config } =
-        await loadProjectConfig(projectId, user.id, { previewLayerNames });
+      const { project, jobConfig, jobLayers, jobTraits } = await resolveJobConfig();
 
-      let jobConfig = config;
-      if (activeConfigId) {
-        const { data: lc } = await supabase
-          .from("layer_configurations")
-          .select("layers_order")
-          .eq("id", activeConfigId)
-          .single();
-        if (lc?.layers_order) {
-          const order = lc.layers_order.map((entry) => {
-            const name = typeof entry === "string" ? entry : entry.name;
-            const match = dbLayers.find((l) => l.name === name);
-            return match ? { name, options: match.options || {} } : null;
-          }).filter(Boolean);
-          jobConfig = {
-            ...config,
-            layerConfigurations: [{ growEditionSizeTo: 1, layersOrder: order }],
-          };
-        }
+      const traitsByLayer = random
+        ? await buildTraitsByLayerForCompositor(jobLayers, jobTraits, {
+            canvasWidth: project.canvas_width,
+            canvasHeight: project.canvas_height,
+          })
+        : await buildTraitsByLayerForPreview(
+            jobLayers,
+            jobTraits,
+            selections,
+            project
+          );
+
+      const results = [];
+      for (let i = 0; i < count; i++) {
+        const result = await renderSingle(jobConfig, {
+          traitsByLayer,
+          selectedTraits: random ? undefined : selections,
+          edition: i + 1,
+        });
+        const image = await blobToDataUrl(result.blob);
+        results.push({ image, attributes: result.attributes });
       }
 
-      const { layers: jobLayers, traitsByLayerId: jobTraits } = filterLayersForJob(
-        dbLayers,
-        traitsByLayerId,
-        jobConfig
-      );
-
-      const traitsByLayer = await buildTraitsByLayerForPreview(
-        jobLayers,
-        jobTraits,
-        selections
-      );
-
-      const result = await renderSingle(jobConfig, {
-        traitsByLayer,
-        selectedTraits: selections,
-        edition: 1,
-      });
-
-      const buffer = await result.blob.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const image = btoa(binary);
-
-      setPreview({ image, attributes: result.attributes });
+      setPreviews(results);
     } catch (err) {
       setError(err.message || "Preview failed");
     }
+
     previewInFlight.current = false;
     setLoading(false);
   }
 
   if (!layers.length) {
-    return <p className="text-sm text-zinc-500 text-center py-8">Upload layers to preview</p>;
+    return (
+      <p className="text-sm text-zinc-500 text-center py-8">
+        Upload layers to preview
+      </p>
+    );
   }
 
   return (
@@ -203,16 +217,6 @@ export default function PreviewPanel({ projectId }) {
           </div>
         )}
 
-        <div className="flex gap-2">
-          <button
-            onClick={randomize}
-            className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors"
-          >
-            <Shuffle size={16} />
-            Randomize
-          </button>
-        </div>
-
         {visibleLayers.length === 0 ? (
           <p className="text-sm text-zinc-500">
             No layers selected for this character. Add layers on the Layers tab.
@@ -238,39 +242,67 @@ export default function PreviewPanel({ projectId }) {
           ))
         )}
 
-        <button
-          onClick={generatePreview}
-          disabled={loading || visibleLayers.length === 0}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
-        >
-          <Eye size={18} weight="bold" />
-          {loading ? "Rendering..." : "Preview"}
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => generatePreviews({ random: true, count: PREVIEW_COUNT })}
+            disabled={loading || visibleLayers.length === 0}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <Eye size={18} weight="bold" />
+            {loading
+              ? "Rendering..."
+              : `Preview ${PREVIEW_COUNT} random editions`}
+          </button>
+          <button
+            onClick={() => generatePreviews({ random: false, count: 1 })}
+            disabled={loading || visibleLayers.length === 0}
+            className="w-full rounded-full border border-zinc-700 px-6 py-2.5 text-sm text-zinc-300 hover:border-emerald-500/40 hover:text-emerald-400 transition-colors disabled:opacity-50"
+          >
+            Preview current selections
+          </button>
+        </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
 
-      <div className="bezel-outer">
-        <div className="bezel-inner aspect-square flex items-center justify-center overflow-hidden">
-          {preview?.image ? (
-            <img
-              src={`data:image/png;base64,${preview.image}`}
-              alt="NFT preview"
-              className="w-full h-full object-contain"
-            />
-          ) : (
-            <p className="text-sm text-zinc-600">Preview will appear here</p>
-          )}
-        </div>
-        {preview?.attributes && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {preview.attributes.map((a) => (
-              <span
-                key={`${a.trait_type}-${a.value}`}
-                className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-400"
-              >
-                {a.trait_type}: {a.value}
-              </span>
+      <div className="space-y-4">
+        {previews.length === 0 ? (
+          <div className="bezel-outer">
+            <div className="bezel-inner aspect-square flex items-center justify-center overflow-hidden">
+              <p className="text-sm text-zinc-600 text-center px-6">
+                Click preview to render {PREVIEW_COUNT} random editions using your
+                restriction rules.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            className={`grid gap-3 ${
+              previews.length > 1 ? "grid-cols-2" : "grid-cols-1"
+            }`}
+          >
+            {previews.map((preview, index) => (
+              <div key={index} className="bezel-outer">
+                <div className="bezel-inner aspect-square flex flex-col overflow-hidden">
+                  <img
+                    src={preview.image}
+                    alt={`Preview ${index + 1}`}
+                    className="w-full flex-1 object-contain"
+                  />
+                  {preview.attributes?.length > 0 && (
+                    <div className="p-2 flex flex-wrap gap-1 border-t border-zinc-800">
+                      {preview.attributes.map((a) => (
+                        <span
+                          key={`${index}-${a.trait_type}-${a.value}`}
+                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400"
+                        >
+                          {a.value}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         )}

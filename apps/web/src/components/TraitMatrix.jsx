@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchTraitPreviewBlobUrl, revokeBlobUrl } from "../lib/traitPreviews";
-import { ensureTraitThumbs } from "../lib/traitThumbs";
+import { ensureTraitThumb } from "../lib/traitThumbs";
 
 export default function TraitMatrix({ projectId }) {
   const [layers, setLayers] = useState([]);
@@ -45,13 +45,6 @@ export default function TraitMatrix({ projectId }) {
 
     setLayers(enriched);
     setLoading(false);
-
-    const paths = (traitData || [])
-      .map((t) => t.storage_path)
-      .filter(Boolean);
-    if (paths.length) {
-      ensureTraitThumbs(paths, { concurrency: 2 }).catch(() => {});
-    }
   }
 
   async function updateWeight(traitId, weight) {
@@ -168,7 +161,10 @@ function TraitCard({ trait, saving, onWeightChange }) {
     let cancelled = false;
     setStatus("loading");
 
-    fetchTraitPreviewBlobUrl(trait.storage_path)
+    (async () => {
+      await ensureTraitThumb(trait.storage_path).catch(() => {});
+      return fetchTraitPreviewBlobUrl(trait.storage_path);
+    })()
       .then((blobUrl) => {
         if (cancelled) {
           revokeBlobUrl(blobUrl);

@@ -269,6 +269,24 @@ function ExcludeElementsEditor({ rule, layers, mergePayload, onUpdate }) {
   const allChecked =
     (layer?.traits || []).length > 0 &&
     excludedTraits.length === (layer?.traits || []).length;
+  const lockExclusive = !!rule.payload?.lockExclusiveToTrigger;
+
+  function buildAllowedMap(layerName, excluded) {
+    const layerTraits = layers.find((l) => l.name === layerName)?.traits || [];
+    return {
+      [layerName]: layerTraits.filter((t) => !excluded.includes(t)),
+    };
+  }
+
+  function updateExclusions(nextExcluded) {
+    const partial = {
+      excludeElements: { [affectedLayer]: nextExcluded },
+    };
+    if (lockExclusive) {
+      partial.allowedWhenTriggered = buildAllowedMap(affectedLayer, nextExcluded);
+    }
+    onUpdate({ payload: mergePayload(partial) });
+  }
 
   return (
     <div className="space-y-2">
@@ -276,11 +294,17 @@ function ExcludeElementsEditor({ rule, layers, mergePayload, onUpdate }) {
         <label className="text-xs text-zinc-500 block mb-1">In layer</label>
         <select
           value={affectedLayer}
-          onChange={(e) =>
+          onChange={(e) => {
+            const name = e.target.value;
             onUpdate({
-              payload: mergePayload({ excludeElements: { [e.target.value]: [] } }),
-            })
-          }
+              payload: mergePayload({
+                excludeElements: { [name]: [] },
+                allowedWhenTriggered: lockExclusive
+                  ? buildAllowedMap(name, [])
+                  : undefined,
+              }),
+            });
+          }}
           className="w-full sm:max-w-xs bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
         >
           {layers.map((l) => (
@@ -293,13 +317,7 @@ function ExcludeElementsEditor({ rule, layers, mergePayload, onUpdate }) {
           <label className="text-xs text-zinc-500">Exclude traits</label>
           <button
             onClick={() =>
-              onUpdate({
-                payload: mergePayload({
-                  excludeElements: {
-                    [affectedLayer]: allChecked ? [] : [...(layer?.traits || [])],
-                  },
-                }),
-              })
+              updateExclusions(allChecked ? [] : [...(layer?.traits || [])])
             }
             className="text-[11px] text-emerald-400 hover:text-emerald-300"
           >
@@ -318,11 +336,7 @@ function ExcludeElementsEditor({ rule, layers, mergePayload, onUpdate }) {
                     const next = checked
                       ? excludedTraits.filter((x) => x !== t)
                       : [...excludedTraits, t];
-                    onUpdate({
-                      payload: mergePayload({
-                        excludeElements: { [affectedLayer]: next },
-                      }),
-                    });
+                    updateExclusions(next);
                   }}
                   className="rounded border-zinc-600"
                 />
@@ -331,6 +345,28 @@ function ExcludeElementsEditor({ rule, layers, mergePayload, onUpdate }) {
             );
           })}
         </div>
+        <label className="flex items-start gap-2 text-xs text-zinc-400 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={lockExclusive}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              onUpdate({
+                payload: mergePayload({
+                  lockExclusiveToTrigger: enabled,
+                  allowedWhenTriggered: enabled
+                    ? buildAllowedMap(affectedLayer, excludedTraits)
+                    : undefined,
+                }),
+              });
+            }}
+            className="rounded border-zinc-600 mt-0.5"
+          />
+          <span>
+            Only allow unchecked traits when the trigger is active (also hide those
+            traits when the trigger is not active).
+          </span>
+        </label>
       </div>
     </div>
   );

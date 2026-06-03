@@ -176,11 +176,11 @@ const renderSingle = async (config, options = {}) => {
 
   const renderer = createRenderer(config, layersDir, traitsByLayer);
   const layers = renderer.resolveLayers();
-  const { createDna } = renderer.restrictionHelpers;
+  const { createDna, sanitizeDna } = renderer.restrictionHelpers;
 
   let finalDna = dna;
   if (!finalDna && selectedTraits) {
-    finalDna = dnaFromSelections(layers, selectedTraits);
+    finalDna = sanitizeDna(dnaFromSelections(layers, selectedTraits), layers);
   }
   if (!finalDna) {
     finalDna = createDna(layers);

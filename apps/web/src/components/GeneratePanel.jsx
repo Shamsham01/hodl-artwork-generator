@@ -445,7 +445,7 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
             <div>
               <h3 className="text-sm font-semibold text-white">Live preview</h3>
               <p className="text-xs text-zinc-500 mt-1">
-                Latest {LIVE_PREVIEW_LIMIT} editions while generating — small WebP previews only.
+                Latest {LIVE_PREVIEW_LIMIT} editions while generating — in-memory previews only (no storage egress).
               </p>
             </div>
 

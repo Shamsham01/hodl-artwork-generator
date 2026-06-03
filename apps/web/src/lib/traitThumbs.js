@@ -66,15 +66,24 @@ function thumbFileName(thumbPath) {
   return thumbPath.slice(thumbPath.lastIndexOf("/") + 1);
 }
 
-async function getExistingThumbMeta(thumbPath) {
-  const dir = thumbPath.slice(0, thumbPath.lastIndexOf("/"));
-  const name = thumbFileName(thumbPath);
-  const { data } = await supabase.storage.from("layer-assets").list(dir, {
-    search: name,
-    limit: 1,
+const thumbDirCache = new Map();
+
+async function listThumbNamesInDir(dir) {
+  if (thumbDirCache.has(dir)) return thumbDirCache.get(dir);
+  const thumbDir = `${dir}/thumbs/v2`;
+  const { data } = await supabase.storage.from("layer-assets").list(thumbDir, {
+    limit: 1000,
   });
-  const entry = data?.find((f) => f.name === name);
-  return entry?.metadata?.size ?? entry?.metadata?.contentLength ?? null;
+  const names = new Set((data || []).map((f) => f.name));
+  thumbDirCache.set(dir, names);
+  return names;
+}
+
+async function thumbExists(storagePath) {
+  const thumbPath = traitThumbPath(storagePath);
+  const dir = storagePath.slice(0, storagePath.lastIndexOf("/"));
+  const names = await listThumbNamesInDir(dir);
+  return names.has(thumbFileName(thumbPath));
 }
 
 /**
@@ -82,10 +91,7 @@ async function getExistingThumbMeta(thumbPath) {
  */
 export async function ensureTraitThumb(storagePath, { force = false } = {}) {
   const thumbPath = traitThumbPath(storagePath);
-  if (!force) {
-    const size = await getExistingThumbMeta(thumbPath);
-    if (size != null) return thumbPath;
-  }
+  if (!force && (await thumbExists(storagePath))) return thumbPath;
 
   const { data, error } = await supabase.storage
     .from("layer-assets")

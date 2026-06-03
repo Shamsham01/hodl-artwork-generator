@@ -115,6 +115,8 @@ async function loadProjectConfig(projectId, userId, options = {}) {
     return {
       when: { layer: r.trigger_layer, element: triggerOf(r) },
       excludeElements: r.payload.excludeElements || {},
+      lockExclusiveToTrigger: !!r.payload.lockExclusiveToTrigger,
+      allowedWhenTriggered: r.payload.allowedWhenTriggered || {},
     };
   });
 
