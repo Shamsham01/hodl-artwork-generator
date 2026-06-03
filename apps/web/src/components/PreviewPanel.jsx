@@ -38,16 +38,35 @@ async function blobToDataUrl(blob) {
   return `data:image/png;base64,${btoa(binary)}`;
 }
 
+function TraitTags({ attributes, keyPrefix = "" }) {
+  if (!attributes?.length) return null;
+  return (
+    <ul className="flex flex-wrap gap-1 mt-2">
+      {attributes.map((a) => (
+        <li key={`${keyPrefix}${a.trait_type}-${a.value}`}>
+          <span className="text-[10px] leading-tight px-1.5 py-0.5 rounded bg-zinc-800/90 text-zinc-500">
+            <span className="text-zinc-600">{a.trait_type}:</span> {a.value}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function PreviewPanel({ projectId }) {
   const { user } = useAuth();
   const [layers, setLayers] = useState([]);
   const [configs, setConfigs] = useState([]);
   const [activeConfigId, setActiveConfigId] = useState(null);
   const [selections, setSelections] = useState({});
-  const [previews, setPreviews] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const previewInFlight = useRef(false);
+  const [randomPreviews, setRandomPreviews] = useState([]);
+  const [singlePreview, setSinglePreview] = useState(null);
+  const [loadingRandom, setLoadingRandom] = useState(false);
+  const [loadingSingle, setLoadingSingle] = useState(false);
+  const [randomError, setRandomError] = useState(null);
+  const [singleError, setSingleError] = useState(null);
+  const randomInFlight = useRef(false);
+  const singleInFlight = useRef(false);
 
   useEffect(() => {
     loadLayers();
@@ -84,7 +103,8 @@ export default function PreviewPanel({ projectId }) {
 
     const visible = firstConfig ? layersForConfig(firstConfig, enriched) : enriched;
     setSelections(defaultSelections(visible));
-    setPreviews([]);
+    setRandomPreviews([]);
+    setSinglePreview(null);
   }
 
   const activeConfig = configs.find((c) => c.id === activeConfigId) || null;
@@ -98,8 +118,10 @@ export default function PreviewPanel({ projectId }) {
     const config = configs.find((c) => c.id === configId);
     setActiveConfigId(configId);
     setSelections(defaultSelections(layersForConfig(config, layers)));
-    setPreviews([]);
-    setError(null);
+    setRandomPreviews([]);
+    setSinglePreview(null);
+    setRandomError(null);
+    setSingleError(null);
   }
 
   async function resolveJobConfig() {
@@ -138,46 +160,75 @@ export default function PreviewPanel({ projectId }) {
     return { project, jobConfig, jobLayers, jobTraits };
   }
 
-  async function generatePreviews({ random = true, count = PREVIEW_COUNT } = {}) {
-    if (previewInFlight.current || !user?.id) return;
-    previewInFlight.current = true;
-    setLoading(true);
-    setError(null);
-    setPreviews([]);
+  async function generateRandomPreviews() {
+    if (randomInFlight.current || !user?.id) return;
+    randomInFlight.current = true;
+    setLoadingRandom(true);
+    setRandomError(null);
+    setRandomPreviews([]);
 
     try {
       const { project, jobConfig, jobLayers, jobTraits } = await resolveJobConfig();
-
-      const traitsByLayer = random
-        ? await buildTraitsByLayerForCompositor(jobLayers, jobTraits, {
-            canvasWidth: project.canvas_width,
-            canvasHeight: project.canvas_height,
-          })
-        : await buildTraitsByLayerForPreview(
-            jobLayers,
-            jobTraits,
-            selections,
-            project
-          );
+      const traitsByLayer = await buildTraitsByLayerForCompositor(
+        jobLayers,
+        jobTraits,
+        {
+          canvasWidth: project.canvas_width,
+          canvasHeight: project.canvas_height,
+        }
+      );
 
       const results = [];
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < PREVIEW_COUNT; i++) {
         const result = await renderSingle(jobConfig, {
           traitsByLayer,
-          selectedTraits: random ? undefined : selections,
           edition: i + 1,
         });
-        const image = await blobToDataUrl(result.blob);
-        results.push({ image, attributes: result.attributes });
+        results.push({
+          image: await blobToDataUrl(result.blob),
+          attributes: result.attributes,
+        });
       }
-
-      setPreviews(results);
+      setRandomPreviews(results);
     } catch (err) {
-      setError(err.message || "Preview failed");
+      setRandomError(err.message || "Random preview failed");
     }
 
-    previewInFlight.current = false;
-    setLoading(false);
+    randomInFlight.current = false;
+    setLoadingRandom(false);
+  }
+
+  async function generateSinglePreview() {
+    if (singleInFlight.current || !user?.id) return;
+    singleInFlight.current = true;
+    setLoadingSingle(true);
+    setSingleError(null);
+
+    try {
+      const { project, jobConfig, jobLayers, jobTraits } = await resolveJobConfig();
+      const traitsByLayer = await buildTraitsByLayerForPreview(
+        jobLayers,
+        jobTraits,
+        selections,
+        project
+      );
+
+      const result = await renderSingle(jobConfig, {
+        traitsByLayer,
+        selectedTraits: selections,
+        edition: 1,
+      });
+
+      setSinglePreview({
+        image: await blobToDataUrl(result.blob),
+        attributes: result.attributes,
+      });
+    } catch (err) {
+      setSingleError(err.message || "Preview failed");
+    }
+
+    singleInFlight.current = false;
+    setLoadingSingle(false);
   }
 
   if (!layers.length) {
@@ -188,130 +239,166 @@ export default function PreviewPanel({ projectId }) {
     );
   }
 
-  return (
-    <div className="space-y-6 w-full">
-      <div className="space-y-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          {configs.length > 0 && (
-            <div className="w-full sm:max-w-xs">
-              <label className="text-xs text-zinc-500 block mb-1">Character</label>
-              <div className="relative">
-                <Stack
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
-                />
-                <select
-                  value={activeConfigId || ""}
-                  onChange={(e) => handleConfigChange(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white"
-                >
-                  {configs.map((c, i) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label || `Character ${i + 1}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
+  const characterSelect = configs.length > 0 && (
+    <div className="w-full sm:max-w-xs">
+      <label className="text-xs text-zinc-500 block mb-1">Character</label>
+      <div className="relative">
+        <Stack
+          size={16}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
+        />
+        <select
+          value={activeConfigId || ""}
+          onChange={(e) => handleConfigChange(e.target.value)}
+          className="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white"
+        >
+          {configs.map((c, i) => (
+            <option key={c.id} value={c.id}>
+              {c.label || `Character ${i + 1}`}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <button
-              onClick={() => generatePreviews({ random: true, count: PREVIEW_COUNT })}
-              disabled={loading || visibleLayers.length === 0}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              <Eye size={18} weight="bold" />
-              {loading
-                ? "Rendering..."
-                : `Preview ${PREVIEW_COUNT} random`}
-            </button>
-            <button
-              onClick={() => generatePreviews({ random: false, count: 1 })}
-              disabled={loading || visibleLayers.length === 0}
-              className="rounded-full border border-zinc-700 px-5 py-2.5 text-sm text-zinc-300 hover:border-emerald-500/40 hover:text-emerald-400 transition-colors disabled:opacity-50"
-            >
-              Current selections
-            </button>
-          </div>
+  return (
+    <div className="space-y-10 w-full">
+      {/* —— Random collection review —— */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Collection preview</h2>
+          <p className="text-xs text-zinc-500 mt-1">
+            Random editions with your restriction rules — quick visual QA before
+            generating the full collection.
+          </p>
         </div>
 
-        {configs.length > 0 && (
-          <p className="text-[11px] text-zinc-600">
-            Layers below follow this character, back → front. Previews use your restriction
-            rules.
-          </p>
-        )}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          {characterSelect}
+          <button
+            onClick={generateRandomPreviews}
+            disabled={loadingRandom || visibleLayers.length === 0}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <Eye size={18} weight="bold" />
+            {loadingRandom
+              ? "Rendering..."
+              : `Preview ${PREVIEW_COUNT} random editions`}
+          </button>
+        </div>
 
-        {visibleLayers.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            No layers selected for this character. Add layers on the Layers tab.
-          </p>
+        {randomError && <p className="text-sm text-red-400">{randomError}</p>}
+
+        {randomPreviews.length === 0 ? (
+          <div className="bezel-outer">
+            <div className="bezel-inner aspect-[2/1] min-h-[180px] flex items-center justify-center">
+              <p className="text-sm text-zinc-600 text-center px-6">
+                Generate {PREVIEW_COUNT} random samples to review how the collection
+                might look.
+              </p>
+            </div>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {visibleLayers.map((layer) => (
-              <div key={layer.id}>
-                <label className="text-xs text-zinc-500 block mb-1 truncate">
-                  {layer.name}
-                </label>
-                <select
-                  value={selections[layer.name] || ""}
-                  onChange={(e) =>
-                    setSelections((prev) => ({ ...prev, [layer.name]: e.target.value }))
-                  }
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
-                >
-                  {layer.traits.map((t) => (
-                    <option key={t.id} value={t.name}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+            {randomPreviews.map((preview, index) => (
+              <div key={index} className="space-y-1.5 min-w-0">
+                <div className="bezel-outer">
+                  <div className="bezel-inner aspect-square flex items-center justify-center overflow-hidden">
+                    <img
+                      src={preview.image}
+                      alt={`Random preview ${index + 1}`}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+                <TraitTags attributes={preview.attributes} keyPrefix={`r${index}-`} />
               </div>
             ))}
           </div>
         )}
+      </section>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
-      </div>
-
-      {previews.length === 0 ? (
-        <div className="bezel-outer">
-          <div className="bezel-inner aspect-[2/1] min-h-[200px] flex items-center justify-center">
-            <p className="text-sm text-zinc-600 text-center px-6">
-              Run preview to render {PREVIEW_COUNT} random editions across the full width
-              below.
+      {/* —— Targeted single preview —— */}
+      <section className="bezel-outer">
+        <div className="bezel-inner p-6 lg:p-8">
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-white">Targeted preview</h2>
+            <p className="text-xs text-zinc-500 mt-1">
+              Pick exact traits to test a combination — useful when building rules on
+              the Filters tab.
             </p>
           </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-          {previews.map((preview, index) => (
-            <div key={index} className="space-y-1.5 min-w-0">
-              <div className="bezel-outer">
-                <div className="bezel-inner aspect-square flex items-center justify-center overflow-hidden">
-                  <img
-                    src={preview.image}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
+
+          {visibleLayers.length === 0 ? (
+            <p className="text-sm text-zinc-500">
+              No layers selected for this character. Add layers on the Layers tab.
+            </p>
+          ) : (
+            <div className="grid lg:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                {visibleLayers.map((layer) => (
+                  <div key={layer.id}>
+                    <label className="text-xs text-zinc-500 block mb-1">
+                      {layer.name}
+                    </label>
+                    <select
+                      value={selections[layer.name] || ""}
+                      onChange={(e) =>
+                        setSelections((prev) => ({
+                          ...prev,
+                          [layer.name]: e.target.value,
+                        }))
+                      }
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                    >
+                      {layer.traits.map((t) => (
+                        <option key={t.id} value={t.name}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+
+                <button
+                  onClick={generateSinglePreview}
+                  disabled={loadingSingle}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-medium text-zinc-950 hover:bg-emerald-400 transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                  <Eye size={18} weight="bold" />
+                  {loadingSingle ? "Rendering..." : "Preview"}
+                </button>
+
+                {singleError && (
+                  <p className="text-sm text-red-400">{singleError}</p>
+                )}
               </div>
-              {preview.attributes?.length > 0 && (
-                <ul className="flex flex-wrap gap-1">
-                  {preview.attributes.map((a) => (
-                    <li key={`${index}-${a.trait_type}-${a.value}`}>
-                      <span className="text-[10px] leading-tight px-1.5 py-0.5 rounded bg-zinc-800/90 text-zinc-500">
-                        <span className="text-zinc-600">{a.trait_type}:</span> {a.value}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+
+              <div className="space-y-2">
+                <div className="bezel-outer">
+                  <div className="bezel-inner aspect-square flex items-center justify-center overflow-hidden">
+                    {singlePreview?.image ? (
+                      <img
+                        src={singlePreview.image}
+                        alt="Targeted preview"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <p className="text-sm text-zinc-600 text-center px-6">
+                        Choose traits and click Preview to render one edition.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {singlePreview?.attributes && (
+                  <TraitTags attributes={singlePreview.attributes} keyPrefix="s-" />
+                )}
+              </div>
             </div>
-          ))}
+          )}
         </div>
-      )}
+      </section>
     </div>
   );
 }
