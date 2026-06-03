@@ -84,12 +84,9 @@ export async function loadProjectConfig(projectId, userId, options = {}) {
         excludeLayers: r.payload.excludeLayers || [],
       };
     }
-    const allowedWhenTriggered = r.payload.allowedWhenTriggered || {};
     return {
       when: { layer: r.trigger_layer, element: triggerOf(r) },
       excludeElements: r.payload.excludeElements || {},
-      lockExclusiveToTrigger: !!r.payload.lockExclusiveToTrigger,
-      allowedWhenTriggered,
     };
   });
 

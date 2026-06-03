@@ -282,26 +282,27 @@ export default function PreviewPanel({ projectId }) {
             }`}
           >
             {previews.map((preview, index) => (
-              <div key={index} className="bezel-outer">
-                <div className="bezel-inner aspect-square flex flex-col overflow-hidden">
-                  <img
-                    src={preview.image}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full flex-1 object-contain"
-                  />
-                  {preview.attributes?.length > 0 && (
-                    <div className="p-2 flex flex-wrap gap-1 border-t border-zinc-800">
-                      {preview.attributes.map((a) => (
-                        <span
-                          key={`${index}-${a.trait_type}-${a.value}`}
-                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400"
-                        >
-                          {a.value}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+              <div key={index} className="space-y-2">
+                <div className="bezel-outer">
+                  <div className="bezel-inner aspect-square flex items-center justify-center overflow-hidden">
+                    <img
+                      src={preview.image}
+                      alt={`Preview ${index + 1}`}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
                 </div>
+                {preview.attributes?.length > 0 && (
+                  <ul className="flex flex-wrap gap-1.5">
+                    {preview.attributes.map((a) => (
+                      <li key={`${index}-${a.trait_type}-${a.value}`}>
+                        <span className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-400">
+                          {a.trait_type}: {a.value}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>

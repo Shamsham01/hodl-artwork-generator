@@ -67,22 +67,25 @@ const formatPick = (element, layer) =>
   }`;
 
 export const createRestrictionHelpers = (layerRestrictions = []) => {
-  const getExcludedElementNamesForLayer = (layerName, currentPicks) => {
+  /**
+   * For exclude-elements rules: checked traits are blocked when the trigger
+   * is active; unchecked traits are dedicated to that trigger and blocked otherwise.
+   */
+  const getExcludedElementNamesForLayer = (layer, currentPicks) => {
+    const layerName = layerKey(layer);
     const excluded = new Set();
     for (const r of layerRestrictions) {
       if (!r.excludeElements) continue;
-      const active = isTriggerActive(r.when, currentPicks);
       const lists = r.excludeElements[layerName];
-      if (active && lists?.length) {
+      if (!lists) continue;
+
+      const active = isTriggerActive(r.when, currentPicks);
+      if (active) {
         lists.forEach((n) => excluded.add(n));
-        continue;
-      }
-      if (
-        !active &&
-        r.lockExclusiveToTrigger &&
-        r.allowedWhenTriggered?.[layerName]?.length
-      ) {
-        r.allowedWhenTriggered[layerName].forEach((n) => excluded.add(n));
+      } else {
+        for (const el of layer.elements) {
+          if (!lists.includes(el.name)) excluded.add(el.name);
+        }
       }
     }
     return excluded;
@@ -128,7 +131,7 @@ export const createRestrictionHelpers = (layerRestrictions = []) => {
       const currentPick = picks[name];
       if (!currentPick) continue;
 
-      const excludedNames = getExcludedElementNamesForLayer(name, picks);
+      const excludedNames = getExcludedElementNamesForLayer(layer, picks);
       if (!excludedNames.has(currentPick)) continue;
 
       const allowedElements = layer.elements.filter(
@@ -162,10 +165,7 @@ export const createRestrictionHelpers = (layerRestrictions = []) => {
         return;
       }
 
-      const excludedNames = getExcludedElementNamesForLayer(
-        layerKey(layer),
-        currentPicks
-      );
+      const excludedNames = getExcludedElementNamesForLayer(layer, currentPicks);
       const pool = layer.elements.filter((e) => !excludedNames.has(e.name));
       const element = weightedPick(
         pool.length ? pool : layer.elements,
