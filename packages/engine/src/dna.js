@@ -73,20 +73,15 @@ const createRestrictionHelpers = (layerRestrictions = []) => {
     for (const r of layerRestrictions) {
       if (!r.excludeElements) continue;
       const lists = r.excludeElements[layerName];
-      if (!lists) continue;
+      if (!lists?.length) continue;
 
       const triggerLayer = r.when.layer;
       if (!Object.prototype.hasOwnProperty.call(currentPicks, triggerLayer)) {
         continue;
       }
 
-      const active = isTriggerActive(r.when, currentPicks);
-      if (active) {
+      if (isTriggerActive(r.when, currentPicks)) {
         lists.forEach((n) => excluded.add(n));
-      } else {
-        for (const el of layer.elements) {
-          if (!lists.includes(el.name)) excluded.add(el.name);
-        }
       }
     }
     return excluded;

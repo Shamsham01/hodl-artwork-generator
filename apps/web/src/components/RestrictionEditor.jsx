@@ -332,8 +332,9 @@ function ExcludeElementsEditor({ rule, layers, mergePayload, onUpdate }) {
           })}
         </div>
         <p className="text-[11px] text-zinc-600 leading-relaxed">
-          Checked traits are blocked when the trigger is active. Unchecked traits
-          are only used with that trigger and never appear on other backgrounds.
+          One-way rule: when the green trigger traits are on this NFT, checked traits
+          below are blocked. Any other head (e.g. IceCream) may use any eye — this
+          rule does not apply.
         </p>
       </div>
     </div>

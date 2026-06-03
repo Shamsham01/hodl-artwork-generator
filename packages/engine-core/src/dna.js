@@ -68,8 +68,9 @@ const formatPick = (element, layer) =>
 
 export const createRestrictionHelpers = (layerRestrictions = []) => {
   /**
-   * For exclude-elements rules: checked traits are blocked when the trigger
-   * is active; unchecked traits are dedicated to that trigger and blocked otherwise.
+   * Exclude-elements rules are one-way: when the trigger matches, block the
+   * checked traits in the target layer. When it does not match (or is not
+   * picked yet), this rule imposes no restriction.
    */
   const getExcludedElementNamesForLayer = (layer, currentPicks) => {
     const layerName = layerKey(layer);
@@ -77,23 +78,15 @@ export const createRestrictionHelpers = (layerRestrictions = []) => {
     for (const r of layerRestrictions) {
       if (!r.excludeElements) continue;
       const lists = r.excludeElements[layerName];
-      if (!lists) continue;
+      if (!lists?.length) continue;
 
       const triggerLayer = r.when.layer;
-      // Layer order often picks EYES before HEAD — until the trigger layer is
-      // chosen, do not apply this rule (inactive branch would wrongly allow only
-      // the checked/excluded traits such as Out).
       if (!Object.prototype.hasOwnProperty.call(currentPicks, triggerLayer)) {
         continue;
       }
 
-      const active = isTriggerActive(r.when, currentPicks);
-      if (active) {
+      if (isTriggerActive(r.when, currentPicks)) {
         lists.forEach((n) => excluded.add(n));
-      } else {
-        for (const el of layer.elements) {
-          if (!lists.includes(el.name)) excluded.add(el.name);
-        }
       }
     }
     return excluded;
