@@ -2,10 +2,32 @@ import { useEffect, useState } from "react";
 import { Plus, Trash } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 
+/** JSONB payload shape per type — avoids stale exclude/include keys in Supabase. */
+function cleanPayload(restrictionType, payload = {}, triggerElements) {
+  const triggers = triggerElements ?? payload.triggerElements ?? [];
+  if (restrictionType === "exclude_layers") {
+    return {
+      triggerElements: triggers,
+      excludeLayers: payload.excludeLayers ?? [],
+    };
+  }
+  if (restrictionType === "include_elements") {
+    return {
+      triggerElements: triggers,
+      includeElements: payload.includeElements ?? {},
+    };
+  }
+  return {
+    triggerElements: triggers,
+    excludeElements: payload.excludeElements ?? {},
+  };
+}
+
 export default function RestrictionEditor({ projectId }) {
   const [restrictions, setRestrictions] = useState([]);
   const [layers, setLayers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saveError, setSaveError] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -59,10 +81,42 @@ export default function RestrictionEditor({ projectId }) {
   }
 
   async function updateRule(id, updates) {
-    await supabase.from("layer_restrictions").update(updates).eq("id", id);
-    setRestrictions((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
-    );
+    setSaveError(null);
+    const existing = restrictions.find((r) => r.id === id);
+    const restrictionType = updates.restriction_type ?? existing?.restriction_type;
+    const nextPayload =
+      updates.payload !== undefined
+        ? cleanPayload(
+            restrictionType,
+            { ...existing?.payload, ...updates.payload },
+            updates.payload?.triggerElements ?? existing?.payload?.triggerElements
+          )
+        : undefined;
+
+    const row = {
+      ...updates,
+      ...(nextPayload !== undefined ? { payload: nextPayload } : {}),
+    };
+
+    const { data, error } = await supabase
+      .from("layer_restrictions")
+      .update(row)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      setSaveError(
+        error.message.includes("layer_restrictions_restriction_type_check")
+          ? "Could not save: run the latest Supabase migration (include_elements), then try again."
+          : error.message
+      );
+      return;
+    }
+
+    if (data) {
+      setRestrictions((prev) => prev.map((r) => (r.id === id ? data : r)));
+    }
   }
 
   async function deleteRule(id) {
@@ -87,6 +141,12 @@ export default function RestrictionEditor({ projectId }) {
           Add rule
         </button>
       </div>
+
+      {saveError && (
+        <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          {saveError}
+        </p>
+      )}
 
       {restrictions.length === 0 ? (
         <p className="text-sm text-zinc-600 text-center py-6">No restrictions defined</p>
@@ -120,7 +180,7 @@ function RuleCard({ rule, layers, onUpdate, onDelete }) {
     triggerTraits.length > 0 && selectedTriggers.length === triggerTraits.length;
 
   function mergePayload(partial) {
-    return { ...(rule.payload || {}), ...partial };
+    return cleanPayload(rule.restriction_type, { ...rule.payload, ...partial }, partial.triggerElements);
   }
 
   function setTriggers(next) {
@@ -145,14 +205,7 @@ function RuleCard({ rule, layers, onUpdate, onDelete }) {
             value={rule.restriction_type}
             onChange={(e) => {
               const type = e.target.value;
-              let payload = { triggerElements: selectedTriggers };
-              if (type === "exclude_layers") {
-                payload = { ...payload, excludeLayers: [], excludeElements: undefined, includeElements: undefined };
-              } else if (type === "include_elements") {
-                payload = { ...payload, includeElements: {}, excludeLayers: undefined, excludeElements: undefined };
-              } else {
-                payload = { ...payload, excludeElements: {}, excludeLayers: undefined, includeElements: undefined };
-              }
+              const payload = cleanPayload(type, rule.payload, selectedTriggers);
               onUpdate({ restriction_type: type, payload });
             }}
             className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white"
