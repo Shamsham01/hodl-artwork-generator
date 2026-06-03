@@ -112,6 +112,12 @@ async function loadProjectConfig(projectId, userId, options = {}) {
         excludeLayers: r.payload.excludeLayers || [],
       };
     }
+    if (r.restriction_type === "include_elements") {
+      return {
+        when: { layer: r.trigger_layer, element: triggerOf(r) },
+        includeElements: r.payload.includeElements || {},
+      };
+    }
     return {
       when: { layer: r.trigger_layer, element: triggerOf(r) },
       excludeElements: r.payload.excludeElements || {},

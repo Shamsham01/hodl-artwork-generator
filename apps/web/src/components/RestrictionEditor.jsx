@@ -76,7 +76,8 @@ export default function RestrictionEditor({ projectId }) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-zinc-400">
-          Define rules to exclude layers or traits when combinations conflict
+          One-way rules: when green trigger traits match, apply exclude or include on
+          another layer. No effect on other combinations.
         </p>
         <button
           onClick={addRule}
@@ -107,6 +108,7 @@ export default function RestrictionEditor({ projectId }) {
 function RuleCard({ rule, layers, onUpdate, onDelete }) {
   const triggerLayer = layers.find((l) => l.name === rule.trigger_layer);
   const isExcludeLayers = rule.restriction_type === "exclude_layers";
+  const isIncludeElements = rule.restriction_type === "include_elements";
 
   const triggerTraits = triggerLayer?.traits || [];
   const selectedTriggers = Array.isArray(rule.payload?.triggerElements)
@@ -141,19 +143,23 @@ function RuleCard({ rule, layers, onUpdate, onDelete }) {
         <div className="flex items-center justify-between">
           <select
             value={rule.restriction_type}
-            onChange={(e) =>
-              onUpdate({
-                restriction_type: e.target.value,
-                payload:
-                  e.target.value === "exclude_layers"
-                    ? mergePayload({ excludeLayers: [], excludeElements: undefined })
-                    : mergePayload({ excludeElements: {}, excludeLayers: undefined }),
-              })
-            }
+            onChange={(e) => {
+              const type = e.target.value;
+              let payload = { triggerElements: selectedTriggers };
+              if (type === "exclude_layers") {
+                payload = { ...payload, excludeLayers: [], excludeElements: undefined, includeElements: undefined };
+              } else if (type === "include_elements") {
+                payload = { ...payload, includeElements: {}, excludeLayers: undefined, excludeElements: undefined };
+              } else {
+                payload = { ...payload, excludeElements: {}, excludeLayers: undefined, includeElements: undefined };
+              }
+              onUpdate({ restriction_type: type, payload });
+            }}
             className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white"
           >
             <option value="exclude_layers">Exclude entire layers</option>
             <option value="exclude_elements">Exclude specific traits</option>
+            <option value="include_elements">Include specific traits only</option>
           </select>
           <button onClick={onDelete} className="text-zinc-500 hover:text-red-400">
             <Trash size={18} />
@@ -248,6 +254,13 @@ function RuleCard({ rule, layers, onUpdate, onDelete }) {
               })}
             </div>
           </div>
+        ) : isIncludeElements ? (
+          <IncludeElementsEditor
+            rule={rule}
+            layers={layers}
+            mergePayload={mergePayload}
+            onUpdate={onUpdate}
+          />
         ) : (
           <ExcludeElementsEditor
             rule={rule}
@@ -332,9 +345,95 @@ function ExcludeElementsEditor({ rule, layers, mergePayload, onUpdate }) {
           })}
         </div>
         <p className="text-[11px] text-zinc-600 leading-relaxed">
-          One-way rule: when the green trigger traits are on this NFT, checked traits
-          below are blocked. Any other head (e.g. IceCream) may use any eye — this
-          rule does not apply.
+          When trigger matches: checked traits are blocked. When it does not match,
+          this rule does nothing (any trait allowed).
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function IncludeElementsEditor({ rule, layers, mergePayload, onUpdate }) {
+  const includeElements = rule.payload?.includeElements || {};
+  const affectedLayer = Object.keys(includeElements)[0] || layers[0]?.name;
+  const includedTraits = includeElements[affectedLayer] || [];
+  const layer = layers.find((l) => l.name === affectedLayer);
+  const allChecked =
+    (layer?.traits || []).length > 0 &&
+    includedTraits.length === (layer?.traits || []).length;
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <label className="text-xs text-zinc-500 block mb-1">In layer</label>
+        <select
+          value={affectedLayer}
+          onChange={(e) =>
+            onUpdate({
+              payload: mergePayload({ includeElements: { [e.target.value]: [] } }),
+            })
+          }
+          className="w-full sm:max-w-xs bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+        >
+          {layers.map((l) => (
+            <option key={l.id} value={l.name}>{l.name}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs text-zinc-500">Allow only these traits</label>
+          <button
+            onClick={() =>
+              onUpdate({
+                payload: mergePayload({
+                  includeElements: {
+                    [affectedLayer]: allChecked ? [] : [...(layer?.traits || [])],
+                  },
+                }),
+              })
+            }
+            className="text-[11px] text-emerald-400 hover:text-emerald-300"
+          >
+            {allChecked ? "Clear all" : "Select all"}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(layer?.traits || []).map((t) => {
+            const checked = includedTraits.includes(t);
+            return (
+              <label
+                key={t}
+                className={`flex items-center gap-1.5 text-xs cursor-pointer rounded-full border px-2.5 py-1 transition-colors ${
+                  checked
+                    ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                    : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => {
+                    const next = checked
+                      ? includedTraits.filter((x) => x !== t)
+                      : [...includedTraits, t];
+                    onUpdate({
+                      payload: mergePayload({
+                        includeElements: { [affectedLayer]: next },
+                      }),
+                    });
+                  }}
+                  className="sr-only"
+                />
+                {t}
+              </label>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-zinc-600 leading-relaxed">
+          When trigger matches: only checked traits can appear in this layer (e.g.
+          Alien backgrounds → only Alien skins). When it does not match, this rule
+          does nothing.
         </p>
       </div>
     </div>

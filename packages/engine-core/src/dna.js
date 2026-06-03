@@ -68,25 +68,32 @@ const formatPick = (element, layer) =>
 
 export const createRestrictionHelpers = (layerRestrictions = []) => {
   /**
-   * Exclude-elements rules are one-way: when the trigger matches, block the
-   * checked traits in the target layer. When it does not match (or is not
-   * picked yet), this rule imposes no restriction.
+   * One-way trait rules (no effect when trigger does not match):
+   * - excludeElements: block listed traits when trigger is active
+   * - includeElements: allow only listed traits when trigger is active
    */
   const getExcludedElementNamesForLayer = (layer, currentPicks) => {
     const layerName = layerKey(layer);
     const excluded = new Set();
     for (const r of layerRestrictions) {
-      if (!r.excludeElements) continue;
-      const lists = r.excludeElements[layerName];
-      if (!lists?.length) continue;
-
       const triggerLayer = r.when.layer;
       if (!Object.prototype.hasOwnProperty.call(currentPicks, triggerLayer)) {
         continue;
       }
+      if (!isTriggerActive(r.when, currentPicks)) continue;
 
-      if (isTriggerActive(r.when, currentPicks)) {
-        lists.forEach((n) => excluded.add(n));
+      if (r.excludeElements) {
+        const lists = r.excludeElements[layerName];
+        if (lists?.length) lists.forEach((n) => excluded.add(n));
+      }
+
+      if (r.includeElements) {
+        const allowed = r.includeElements[layerName];
+        if (allowed?.length) {
+          for (const el of layer.elements) {
+            if (!allowed.includes(el.name)) excluded.add(el.name);
+          }
+        }
       }
     }
     return excluded;
