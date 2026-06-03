@@ -75,6 +75,11 @@ const createRestrictionHelpers = (layerRestrictions = []) => {
       const lists = r.excludeElements[layerName];
       if (!lists) continue;
 
+      const triggerLayer = r.when.layer;
+      if (!Object.prototype.hasOwnProperty.call(currentPicks, triggerLayer)) {
+        continue;
+      }
+
       const active = isTriggerActive(r.when, currentPicks);
       if (active) {
         lists.forEach((n) => excluded.add(n));
@@ -171,14 +176,24 @@ const createRestrictionHelpers = (layerRestrictions = []) => {
         randNum.push(formatPick(element, layer));
       }
     });
-    fixExcludeElementsViolations(randNum, _layers);
+    enforceExcludeElements(randNum, _layers);
     return randNum.join(DNA_DELIMITER);
+  };
+
+  const enforceExcludeElements = (randNumArray, _layers) => {
+    const maxPasses = _layers.length * Math.max(layerRestrictions.length, 1) + 1;
+    for (let pass = 0; pass < maxPasses; pass++) {
+      const before = randNumArray.join("|");
+      fixExcludeElementsViolations(randNumArray, _layers);
+      if (randNumArray.join("|") === before) break;
+    }
+    return randNumArray;
   };
 
   const sanitizeDna = (dna, _layers) => {
     const parts = dna.split(DNA_DELIMITER);
     if (parts.length !== _layers.length) return dna;
-    fixExcludeElementsViolations(parts, _layers);
+    enforceExcludeElements(parts, _layers);
     return parts.join(DNA_DELIMITER);
   };
 
