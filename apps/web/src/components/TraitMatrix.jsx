@@ -3,6 +3,7 @@ import { CaretDown, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 import { fetchTraitPreviewBlobUrl, revokeBlobUrl } from "../lib/traitPreviews";
 import { ensureTraitThumb } from "../lib/traitThumbs";
+import { downloadCsv } from "../lib/downloadCsv";
 
 const DEFAULT_TRAIT_WEIGHT = 100;
 
@@ -187,14 +188,7 @@ export default function TraitMatrix({ projectId }) {
         rows.push([layer.name, t.name, t.weight, `${t.percentage}%`]);
       });
     });
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "trait-matrix.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(rows, "trait-matrix.csv");
   }
 
   if (loading) {

@@ -19,7 +19,8 @@ import {
   updateCollectionUriClient,
 } from "../lib/clientGeneration.js";
 import { buildCollectionZip, triggerDownload } from "../lib/buildZip.js";
-import { clearEditionsForJob } from "../lib/traitCache.js";
+import { clearEditionsForJob, getEdition, listEditionNumbers } from "../lib/traitCache.js";
+import { downloadRarityReportCsv } from "../lib/downloadCsv.js";
 
 export default function GeneratePanel({ projectId, project, onUpdate }) {
   const { user } = useAuth();
@@ -273,23 +274,52 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
     setUpdatingUri(false);
   }
 
+  async function loadMetadataForRarity(jobId) {
+    const { data: editions } = await supabase
+      .from("generated_editions")
+      .select("metadata")
+      .eq("job_id", jobId);
+
+    const fromDb = (editions || []).map((e) => e.metadata).filter(Boolean);
+    if (fromDb.length > 0) return fromDb;
+
+    const numbers = await listEditionNumbers(jobId);
+    const fromCache = [];
+    for (const num of numbers) {
+      const row = await getEdition(jobId, num);
+      if (row?.metadata) fromCache.push(row.metadata);
+    }
+    return fromCache;
+  }
+
   async function loadRarity() {
     if (!job?.id) return;
     setLoadingRarity(true);
     setError(null);
     try {
-      const { data: editions } = await supabase
-        .from("generated_editions")
-        .select("metadata")
-        .eq("job_id", job.id);
-      const result = computeRarityFromMetadata(
-        (editions || []).map((e) => e.metadata)
-      );
+      const metadataList = await loadMetadataForRarity(job.id);
+      if (!metadataList.length) {
+        setError("No edition metadata found. Generate the collection first.");
+        setRarity(null);
+        return;
+      }
+      const result = computeRarityFromMetadata(metadataList);
       setRarity(result);
     } catch (err) {
       setError(err.message);
     }
     setLoadingRarity(false);
+  }
+
+  function exportRarityCsv() {
+    if (!rarity) return;
+    const prefix = (project?.name_prefix || project?.name || "collection")
+      .replace(/[^\w-]+/g, "-")
+      .replace(/^-|-$/g, "");
+    downloadRarityReportCsv(
+      rarity,
+      `${prefix || "collection"}-rarity-report.csv`
+    );
   }
 
   async function handleRegenerate() {
@@ -522,22 +552,38 @@ export default function GeneratePanel({ projectId, project, onUpdate }) {
 
           <div className="bezel-outer">
             <div className="bezel-inner p-8 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <ChartBar size={18} className="text-emerald-400" />
                   <h3 className="text-sm font-semibold text-white">Rarity report</h3>
                 </div>
-                <button
-                  onClick={loadRarity}
-                  disabled={loadingRarity}
-                  className="text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
-                >
-                  {loadingRarity ? "Computing..." : rarity ? "Refresh" : "Compute rarity"}
-                </button>
+                <div className="flex items-center gap-3">
+                  {rarity && (
+                    <button
+                      type="button"
+                      onClick={exportRarityCsv}
+                      className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+                    >
+                      Export CSV
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={loadRarity}
+                    disabled={loadingRarity}
+                    className="text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+                  >
+                    {loadingRarity ? "Computing..." : rarity ? "Refresh" : "Compute rarity"}
+                  </button>
+                </div>
               </div>
 
               {rarity && (
                 <div className="space-y-5 pt-2">
+                  <p className="text-xs text-zinc-500">
+                    Based on {rarity.total} edition{rarity.total === 1 ? "" : "s"} — export CSV
+                    for spreadsheets or sharing.
+                  </p>
                   {rarity.rarity.map((layer) => (
                     <div key={layer.trait_type}>
                       <p className="text-xs font-medium text-zinc-300 mb-2">
