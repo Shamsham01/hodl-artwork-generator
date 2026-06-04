@@ -1,0 +1,21 @@
+{
+  "name": "HODL Artwork Generator",
+  "short_name": "HODL Art",
+  "description": "NFT collection generator for MultiversX creators by HODL Token Club",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "icons": [
+    {
+      "src": "/favicon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
