@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash } from "@phosphor-icons/react";
+import { Copy, Plus, Trash } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 
 /** JSONB payload shape per type — avoids stale exclude/include keys in Supabase. */
@@ -60,7 +60,16 @@ export default function RestrictionEditor({ projectId }) {
     setLoading(false);
   }
 
-  async function addRule() {
+  function insertRuleInList(prev, newRule, afterRuleId) {
+    if (!afterRuleId) return [...prev, newRule];
+    const idx = prev.findIndex((r) => r.id === afterRuleId);
+    if (idx === -1) return [...prev, newRule];
+    const next = [...prev];
+    next.splice(idx + 1, 0, newRule);
+    return next;
+  }
+
+  async function addRule(afterRuleId = null) {
     const firstTrait = layers[0]?.traits[0] || "";
     const { data } = await supabase
       .from("layer_restrictions")
@@ -77,7 +86,41 @@ export default function RestrictionEditor({ projectId }) {
       .select()
       .single();
 
-    if (data) setRestrictions((prev) => [...prev, data]);
+    if (data) setRestrictions((prev) => insertRuleInList(prev, data, afterRuleId));
+  }
+
+  async function duplicateRule(sourceRule) {
+    const triggers = Array.isArray(sourceRule.payload?.triggerElements)
+      ? sourceRule.payload.triggerElements
+      : sourceRule.trigger_element
+      ? [sourceRule.trigger_element]
+      : [];
+    const payload = cleanPayload(
+      sourceRule.restriction_type,
+      sourceRule.payload,
+      triggers
+    );
+
+    const { data, error } = await supabase
+      .from("layer_restrictions")
+      .insert({
+        project_id: projectId,
+        trigger_layer: sourceRule.trigger_layer,
+        trigger_element: sourceRule.trigger_element || triggers[0] || "",
+        restriction_type: sourceRule.restriction_type,
+        payload,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      setSaveError(error.message);
+      return;
+    }
+
+    if (data) {
+      setRestrictions((prev) => insertRuleInList(prev, data, sourceRule.id));
+    }
   }
 
   async function updateRule(id, updates) {
@@ -158,6 +201,8 @@ export default function RestrictionEditor({ projectId }) {
             layers={layers}
             onUpdate={(updates) => updateRule(rule.id, updates)}
             onDelete={() => deleteRule(rule.id)}
+            onAddRule={() => addRule(rule.id)}
+            onDuplicate={() => duplicateRule(rule)}
           />
         ))
       )}
@@ -165,7 +210,10 @@ export default function RestrictionEditor({ projectId }) {
   );
 }
 
-function RuleCard({ rule, layers, onUpdate, onDelete }) {
+const ruleCardActionClass =
+  "inline-flex items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-900/80 px-3 py-1.5 text-xs text-zinc-300 hover:border-emerald-500/30 hover:text-emerald-400 transition-colors";
+
+function RuleCard({ rule, layers, onUpdate, onDelete, onAddRule, onDuplicate }) {
   const triggerLayer = layers.find((l) => l.name === rule.trigger_layer);
   const isExcludeLayers = rule.restriction_type === "exclude_layers";
   const isIncludeElements = rule.restriction_type === "include_elements";
@@ -322,6 +370,17 @@ function RuleCard({ rule, layers, onUpdate, onDelete }) {
             onUpdate={onUpdate}
           />
         )}
+
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-800/80">
+          <button type="button" onClick={onAddRule} className={ruleCardActionClass}>
+            <Plus size={14} />
+            Add rule
+          </button>
+          <button type="button" onClick={onDuplicate} className={ruleCardActionClass}>
+            <Copy size={14} />
+            Duplicate rule
+          </button>
+        </div>
       </div>
     </div>
   );
