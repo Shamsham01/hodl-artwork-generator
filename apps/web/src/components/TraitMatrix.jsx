@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { CaretDown, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 import { fetchTraitPreviewBlobUrl, revokeBlobUrl } from "../lib/traitPreviews";
 import { ensureTraitThumb } from "../lib/traitThumbs";
 
 const DEFAULT_TRAIT_WEIGHT = 100;
-
-function layerSectionId(layerId) {
-  return `trait-layer-${layerId}`;
-}
 
 function sortTraitsStable(traits) {
   return [...traits].sort((a, b) =>
@@ -36,10 +32,8 @@ export default function TraitMatrix({ projectId }) {
   const [layers, setLayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(null);
-  const [activeLayerId, setActiveLayerId] = useState(null);
-  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [expandedLayerIds, setExpandedLayerIds] = useState(() => new Set());
   const [traitSearch, setTraitSearch] = useState("");
-  const sectionRefs = useRef({});
 
   const searchQuery = traitSearch.trim().toLowerCase();
   const filteredLayers = layers
@@ -56,37 +50,17 @@ export default function TraitMatrix({ projectId }) {
   }, [projectId]);
 
   useEffect(() => {
-    if (!layers.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]?.target?.id) {
-          const id = visible[0].target.id.replace("trait-layer-", "");
-          setActiveLayerId(id);
-        }
-      },
-      { rootMargin: "-20% 0px -55% 0px", threshold: [0, 0.15, 0.4] }
-    );
-
-    layers.forEach((layer) => {
-      const el = sectionRefs.current[layer.id];
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, [layers]);
-
-  useEffect(() => {
-    function onScroll() {
-      setShowBackToTop(window.scrollY > 400);
-    }
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    if (!searchQuery) return;
+    const matching = layers
+      .map((layer) => ({
+        ...layer,
+        traits: layer.traits.filter((t) =>
+          t.name.toLowerCase().includes(searchQuery)
+        ),
+      }))
+      .filter((layer) => layer.traits.length > 0);
+    setExpandedLayerIds(new Set(matching.map((l) => l.id)));
+  }, [searchQuery, layers]);
 
   async function loadTraits() {
     const { data: layerData } = await supabase
@@ -97,6 +71,7 @@ export default function TraitMatrix({ projectId }) {
 
     if (!layerData?.length) {
       setLayers([]);
+      setExpandedLayerIds(new Set());
       setLoading(false);
       return;
     }
@@ -106,10 +81,26 @@ export default function TraitMatrix({ projectId }) {
       .select("*")
       .in("layer_id", layerData.map((l) => l.id));
 
-    const enriched = layerData.map((layer) => enrichLayer(layer, traitData));
-    setLayers(enriched);
-    setActiveLayerId(enriched[0]?.id ?? null);
+    setLayers(layerData.map((layer) => enrichLayer(layer, traitData)));
+    setExpandedLayerIds(new Set());
     setLoading(false);
+  }
+
+  function toggleLayer(layerId) {
+    setExpandedLayerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(layerId)) next.delete(layerId);
+      else next.add(layerId);
+      return next;
+    });
+  }
+
+  function expandAll() {
+    setExpandedLayerIds(new Set(filteredLayers.map((l) => l.id)));
+  }
+
+  function collapseAll() {
+    setExpandedLayerIds(new Set());
   }
 
   async function updateWeight(traitId, weight) {
@@ -189,14 +180,6 @@ export default function TraitMatrix({ projectId }) {
     setSaving(null);
   }
 
-  function scrollToLayer(layerId) {
-    const el = sectionRefs.current[layerId];
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-      setActiveLayerId(layerId);
-    }
-  }
-
   function exportCsv() {
     const rows = [["Layer", "Trait", "Weight", "Percentage"]];
     layers.forEach((layer) => {
@@ -227,12 +210,12 @@ export default function TraitMatrix({ projectId }) {
   }
 
   return (
-    <div className="relative">
-      <div className="flex flex-col gap-4 mb-6">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-4 mb-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <p className="text-xs text-zinc-500 max-w-lg">
-            Set relative scarcity with weights (higher = more common). Search finds traits
-            across all layers; bulk edit sets every trait in a layer to the same weight.
+            Open a layer to set trait weights (higher = more common). Collapse when done
+            and move to the next layer. Search finds traits across all layers.
           </p>
           <button
             onClick={exportCsv}
@@ -273,102 +256,48 @@ export default function TraitMatrix({ projectId }) {
         )}
       </div>
 
-      {/* Mobile / tablet: sticky layer strip */}
-      <div className="lg:hidden sticky top-24 z-20 -mx-1 mb-6">
-        <div className="glass-panel rounded-2xl p-2">
-          <p className="text-[10px] uppercase tracking-wider text-zinc-500 px-2 mb-1.5">
-            Jump to layer
-          </p>
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
-            {(searchQuery ? filteredLayers : layers).map((layer) => (
-              <button
-                key={layer.id}
-                type="button"
-                onClick={() => scrollToLayer(layer.id)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  activeLayerId === layer.id
-                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
-                    : "text-zinc-400 border border-zinc-700/80 hover:text-zinc-200"
-                }`}
-              >
-                {layer.name}
-                <span className="ml-1 text-zinc-600">({layer.traits.length})</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-8">
-        {/* Desktop: layer sections sidebar */}
-        <aside className="hidden lg:block w-44 xl:w-52 shrink-0">
-          <nav
-            className="sticky top-32 max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-2xl border border-zinc-800/80 bg-zinc-950/60 p-2"
-            aria-label="Layer sections"
+      {filteredLayers.length > 1 && (
+        <div className="flex justify-end gap-3 text-xs">
+          <button
+            type="button"
+            onClick={expandAll}
+            className="text-zinc-500 hover:text-emerald-400 transition-colors"
           >
-            <p className="text-[10px] uppercase tracking-wider text-zinc-500 px-2 py-1.5 mb-1">
-              Layers
-            </p>
-            <ul className="space-y-0.5">
-              {(searchQuery ? filteredLayers : layers).map((layer) => (
-                <li key={layer.id}>
-                  <button
-                    type="button"
-                    onClick={() => scrollToLayer(layer.id)}
-                    className={`w-full text-left rounded-lg px-2.5 py-2 text-xs transition-colors ${
-                      activeLayerId === layer.id
-                        ? "bg-emerald-500/10 text-emerald-400"
-                        : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
-                    }`}
-                  >
-                    <span className="font-medium block truncate">{layer.name}</span>
-                    <span className="text-[10px] text-zinc-600">
-                      {layer.traits.length} traits
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </aside>
-
-        <div className="flex-1 min-w-0 space-y-10">
-          {filteredLayers.length === 0 ? (
-            <p className="text-sm text-zinc-500 text-center py-12">
-              No traits match &ldquo;{traitSearch}&rdquo;
-            </p>
-          ) : (
-            filteredLayers.map((layer) => {
-              const fullLayer = layers.find((l) => l.id === layer.id) || layer;
-              return (
-                <LayerSection
-                  key={layer.id}
-                  layer={layer}
-                  fullTraitCount={fullLayer.traits.length}
-                  saving={saving}
-                  onWeightChange={updateWeight}
-                  onBulkWeightChange={bulkUpdateLayerWeights}
-                  sectionRef={(el) => {
-                    sectionRefs.current[layer.id] = el;
-                  }}
-                />
-              );
-            })
-          )}
+            Expand all layers
+          </button>
+          <button
+            type="button"
+            onClick={collapseAll}
+            className="text-zinc-500 hover:text-emerald-400 transition-colors"
+          >
+            Collapse all
+          </button>
         </div>
-      </div>
-
-      {showBackToTop && (
-        <button
-          type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-1.5 rounded-full glass-panel px-4 py-2.5 text-xs font-medium text-zinc-300 hover:text-white shadow-lg transition-colors"
-          aria-label="Back to top"
-        >
-          <ArrowUp size={16} weight="bold" />
-          Top
-        </button>
       )}
+
+      <div className="space-y-3">
+        {filteredLayers.length === 0 ? (
+          <p className="text-sm text-zinc-500 text-center py-12">
+            No traits match &ldquo;{traitSearch}&rdquo;
+          </p>
+        ) : (
+          filteredLayers.map((layer) => {
+            const fullLayer = layers.find((l) => l.id === layer.id) || layer;
+            return (
+              <LayerSection
+                key={layer.id}
+                layer={layer}
+                fullTraitCount={fullLayer.traits.length}
+                expanded={expandedLayerIds.has(layer.id)}
+                onToggle={() => toggleLayer(layer.id)}
+                saving={saving}
+                onWeightChange={updateWeight}
+                onBulkWeightChange={bulkUpdateLayerWeights}
+              />
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
@@ -376,64 +305,81 @@ export default function TraitMatrix({ projectId }) {
 function LayerSection({
   layer,
   fullTraitCount,
+  expanded,
+  onToggle,
   saving,
   onWeightChange,
   onBulkWeightChange,
-  sectionRef,
 }) {
   const [bulkWeight, setBulkWeight] = useState(String(DEFAULT_TRAIT_WEIGHT));
   const isBulkSaving = saving === `bulk-${layer.id}`;
 
   return (
-    <section
-      id={layerSectionId(layer.id)}
-      ref={sectionRef}
-      className="scroll-mt-36"
-    >
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-1">{layer.name}</h3>
-          <p className="text-xs text-zinc-500">
-            {layer.traits.length}
-            {fullTraitCount !== layer.traits.length
-              ? ` of ${fullTraitCount} shown`
-              : " traits"}
-            {" · "}total weight {layer.totalWeight}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <label className="text-[11px] text-zinc-500 whitespace-nowrap">
-            Set all weights
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={bulkWeight}
-            onChange={(e) => setBulkWeight(e.target.value)}
-            disabled={isBulkSaving}
-            className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-white"
+    <div className="bezel-outer">
+      <div className="bezel-inner overflow-hidden">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-zinc-800/30 transition-colors"
+          aria-expanded={expanded}
+        >
+          <CaretDown
+            size={18}
+            className={`shrink-0 text-zinc-500 transition-transform duration-200 ${
+              expanded ? "rotate-180" : ""
+            }`}
           />
-          <button
-            type="button"
-            disabled={isBulkSaving || !layer.traits.length}
-            onClick={() => onBulkWeightChange(layer.id, bulkWeight)}
-            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-40 transition-colors"
-          >
-            {isBulkSaving ? "Saving…" : "Apply"}
-          </button>
-        </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-semibold text-white truncate">{layer.name}</h3>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              {layer.traits.length}
+              {fullTraitCount !== layer.traits.length
+                ? ` of ${fullTraitCount} traits shown`
+                : ` traits`}
+              {" · "}total weight {layer.totalWeight}
+            </p>
+          </div>
+          <span className="shrink-0 text-[11px] text-zinc-600">
+            {expanded ? "Collapse" : "Expand"}
+          </span>
+        </button>
+
+        {expanded && (
+          <div className="px-4 pb-4 pt-1 border-t border-zinc-800/80 space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-[11px] text-zinc-500">Set all weights in layer</label>
+              <input
+                type="number"
+                min="1"
+                value={bulkWeight}
+                onChange={(e) => setBulkWeight(e.target.value)}
+                disabled={isBulkSaving}
+                className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-white"
+              />
+              <button
+                type="button"
+                disabled={isBulkSaving || !layer.traits.length}
+                onClick={() => onBulkWeightChange(layer.id, bulkWeight)}
+                className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-40 transition-colors"
+              >
+                {isBulkSaving ? "Saving…" : "Apply to all"}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {layer.traits.map((trait) => (
+                <TraitCard
+                  key={trait.id}
+                  trait={trait}
+                  saving={saving === trait.id}
+                  onWeightChange={(w) => onWeightChange(trait.id, w)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        {layer.traits.map((trait) => (
-          <TraitCard
-            key={trait.id}
-            trait={trait}
-            saving={saving === trait.id}
-            onWeightChange={(w) => onWeightChange(trait.id, w)}
-          />
-        ))}
-      </div>
-    </section>
+    </div>
   );
 }
 

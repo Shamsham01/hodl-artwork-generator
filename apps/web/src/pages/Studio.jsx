@@ -107,22 +107,20 @@ export default function Studio() {
           </div>
         </div>
 
-        <div className="sticky top-24 z-30 -mx-4 px-4 py-3 mb-6 border-b border-zinc-800/60 bg-[#050505]/85 backdrop-blur-xl">
-          <div className="flex gap-1 overflow-x-auto pb-0.5 max-w-6xl mx-auto">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 ${
-                  tab === t.id
-                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex gap-1 overflow-x-auto mb-8 pb-1">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 ${
+                tab === t.id
+                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
         <div key={refreshKey}>
