@@ -46,7 +46,7 @@ export default function Nav() {
     <nav
       className={`fixed z-50 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
         collapsed
-          ? "top-4 right-4 left-auto translate-x-0 w-auto max-w-none"
+          ? "top-4 left-4 right-auto translate-x-0 w-auto max-w-none"
           : "top-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-3xl"
       }`}
     >

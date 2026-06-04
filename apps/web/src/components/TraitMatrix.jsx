@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp } from "@phosphor-icons/react";
+import { ArrowUp, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 import { fetchTraitPreviewBlobUrl, revokeBlobUrl } from "../lib/traitPreviews";
 import { ensureTraitThumb } from "../lib/traitThumbs";
@@ -38,7 +38,18 @@ export default function TraitMatrix({ projectId }) {
   const [saving, setSaving] = useState(null);
   const [activeLayerId, setActiveLayerId] = useState(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [traitSearch, setTraitSearch] = useState("");
   const sectionRefs = useRef({});
+
+  const searchQuery = traitSearch.trim().toLowerCase();
+  const filteredLayers = layers
+    .map((layer) => ({
+      ...layer,
+      traits: searchQuery
+        ? layer.traits.filter((t) => t.name.toLowerCase().includes(searchQuery))
+        : layer.traits,
+    }))
+    .filter((layer) => !searchQuery || layer.traits.length > 0);
 
   useEffect(() => {
     loadTraits();
@@ -137,6 +148,47 @@ export default function TraitMatrix({ projectId }) {
     setSaving(null);
   }
 
+  async function bulkUpdateLayerWeights(layerId, weight) {
+    const layer = layers.find((l) => l.id === layerId);
+    if (!layer?.traits.length) return;
+
+    const w = Math.max(1, parseInt(weight, 10) || DEFAULT_TRAIT_WEIGHT);
+    const traitIds = layer.traits.map((t) => t.id);
+    setSaving(`bulk-${layerId}`);
+
+    const { error } = await supabase
+      .from("traits")
+      .update({ weight: w })
+      .in("id", traitIds);
+
+    if (error) {
+      setSaving(null);
+      return;
+    }
+
+    setLayers((prev) =>
+      prev.map((l) => {
+        if (l.id !== layerId) return l;
+        const traits = sortTraitsStable(
+          l.traits.map((t) => ({ ...t, weight: w }))
+        );
+        const totalWeight = traits.reduce((s, t) => s + t.weight, 0);
+        return {
+          ...l,
+          traits: traits.map((t) => ({
+            ...t,
+            percentage:
+              totalWeight > 0
+                ? ((t.weight / totalWeight) * 100).toFixed(1)
+                : "0",
+          })),
+          totalWeight,
+        };
+      })
+    );
+    setSaving(null);
+  }
+
   function scrollToLayer(layerId) {
     const el = sectionRefs.current[layerId];
     if (el) {
@@ -176,17 +228,49 @@ export default function TraitMatrix({ projectId }) {
 
   return (
     <div className="relative">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
-        <p className="text-xs text-zinc-500 max-w-lg">
-          Trait previews use 512px WebP thumbs (~25–50 KB) in Storage — less egress than
-          full PNGs. Opening this page builds upgraded thumbs in the background.
-        </p>
-        <button
-          onClick={exportCsv}
-          className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors shrink-0"
-        >
-          Export CSV
-        </button>
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <p className="text-xs text-zinc-500 max-w-lg">
+            Set relative scarcity with weights (higher = more common). Search finds traits
+            across all layers; bulk edit sets every trait in a layer to the same weight.
+          </p>
+          <button
+            onClick={exportCsv}
+            className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors shrink-0"
+          >
+            Export CSV
+          </button>
+        </div>
+
+        <div className="relative max-w-md">
+          <MagnifyingGlass
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
+          />
+          <input
+            type="search"
+            value={traitSearch}
+            onChange={(e) => setTraitSearch(e.target.value)}
+            placeholder="Search traits by name…"
+            className="w-full bg-zinc-900/80 border border-zinc-700 rounded-xl pl-9 pr-9 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/40"
+          />
+          {traitSearch && (
+            <button
+              type="button"
+              onClick={() => setTraitSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-white rounded-lg"
+              aria-label="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-xs text-zinc-500">
+            Showing {filteredLayers.reduce((n, l) => n + l.traits.length, 0)} matching
+            trait(s) in {filteredLayers.length} layer(s)
+          </p>
+        )}
       </div>
 
       {/* Mobile / tablet: sticky layer strip */}
@@ -196,7 +280,7 @@ export default function TraitMatrix({ projectId }) {
             Jump to layer
           </p>
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
-            {layers.map((layer) => (
+            {(searchQuery ? filteredLayers : layers).map((layer) => (
               <button
                 key={layer.id}
                 type="button"
@@ -226,7 +310,7 @@ export default function TraitMatrix({ projectId }) {
               Layers
             </p>
             <ul className="space-y-0.5">
-              {layers.map((layer) => (
+              {(searchQuery ? filteredLayers : layers).map((layer) => (
                 <li key={layer.id}>
                   <button
                     type="button"
@@ -249,17 +333,28 @@ export default function TraitMatrix({ projectId }) {
         </aside>
 
         <div className="flex-1 min-w-0 space-y-10">
-          {layers.map((layer) => (
-            <LayerSection
-              key={layer.id}
-              layer={layer}
-              saving={saving}
-              onWeightChange={updateWeight}
-              sectionRef={(el) => {
-                sectionRefs.current[layer.id] = el;
-              }}
-            />
-          ))}
+          {filteredLayers.length === 0 ? (
+            <p className="text-sm text-zinc-500 text-center py-12">
+              No traits match &ldquo;{traitSearch}&rdquo;
+            </p>
+          ) : (
+            filteredLayers.map((layer) => {
+              const fullLayer = layers.find((l) => l.id === layer.id) || layer;
+              return (
+                <LayerSection
+                  key={layer.id}
+                  layer={layer}
+                  fullTraitCount={fullLayer.traits.length}
+                  saving={saving}
+                  onWeightChange={updateWeight}
+                  onBulkWeightChange={bulkUpdateLayerWeights}
+                  sectionRef={(el) => {
+                    sectionRefs.current[layer.id] = el;
+                  }}
+                />
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -278,17 +373,56 @@ export default function TraitMatrix({ projectId }) {
   );
 }
 
-function LayerSection({ layer, saving, onWeightChange, sectionRef }) {
+function LayerSection({
+  layer,
+  fullTraitCount,
+  saving,
+  onWeightChange,
+  onBulkWeightChange,
+  sectionRef,
+}) {
+  const [bulkWeight, setBulkWeight] = useState(String(DEFAULT_TRAIT_WEIGHT));
+  const isBulkSaving = saving === `bulk-${layer.id}`;
+
   return (
     <section
       id={layerSectionId(layer.id)}
       ref={sectionRef}
       className="scroll-mt-36"
     >
-      <h3 className="text-lg font-semibold text-white mb-1">{layer.name}</h3>
-      <p className="text-xs text-zinc-500 mb-4">
-        {layer.traits.length} traits · total weight {layer.totalWeight}
-      </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">{layer.name}</h3>
+          <p className="text-xs text-zinc-500">
+            {layer.traits.length}
+            {fullTraitCount !== layer.traits.length
+              ? ` of ${fullTraitCount} shown`
+              : " traits"}
+            {" · "}total weight {layer.totalWeight}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <label className="text-[11px] text-zinc-500 whitespace-nowrap">
+            Set all weights
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={bulkWeight}
+            onChange={(e) => setBulkWeight(e.target.value)}
+            disabled={isBulkSaving}
+            className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-white"
+          />
+          <button
+            type="button"
+            disabled={isBulkSaving || !layer.traits.length}
+            onClick={() => onBulkWeightChange(layer.id, bulkWeight)}
+            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-40 transition-colors"
+          >
+            {isBulkSaving ? "Saving…" : "Apply"}
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {layer.traits.map((trait) => (
           <TraitCard

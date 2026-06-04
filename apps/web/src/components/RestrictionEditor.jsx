@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, Plus, Trash } from "@phosphor-icons/react";
+import { CaretDown, Copy, Plus, Trash } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 
 /** JSONB payload shape per type — avoids stale exclude/include keys in Supabase. */
@@ -23,11 +23,46 @@ function cleanPayload(restrictionType, payload = {}, triggerElements) {
   };
 }
 
+const RULE_TYPE_LABELS = {
+  exclude_layers: "Exclude entire layers",
+  exclude_elements: "Exclude specific traits",
+  include_elements: "Include specific traits only",
+};
+
+function ruleSummary(rule) {
+  const triggers = Array.isArray(rule.payload?.triggerElements)
+    ? rule.payload.triggerElements
+    : rule.trigger_element
+    ? [rule.trigger_element]
+    : [];
+  const triggerLabel =
+    triggers.length === 0
+      ? "no triggers"
+      : triggers.length <= 2
+      ? triggers.join(", ")
+      : `${triggers.length} triggers`;
+
+  if (rule.restriction_type === "exclude_layers") {
+    const excluded = rule.payload?.excludeLayers || [];
+    return `${rule.trigger_layer} · ${triggerLabel} → exclude ${excluded.length || "no"} layer(s)`;
+  }
+
+  const map =
+    rule.restriction_type === "include_elements"
+      ? rule.payload?.includeElements
+      : rule.payload?.excludeElements;
+  const affected = Object.keys(map || {})[0] || "—";
+  const count = (map?.[affected] || []).length;
+  const verb = rule.restriction_type === "include_elements" ? "allow" : "block";
+  return `${rule.trigger_layer} · ${triggerLabel} → ${verb} ${count} in ${affected}`;
+}
+
 export default function RestrictionEditor({ projectId }) {
   const [restrictions, setRestrictions] = useState([]);
   const [layers, setLayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState(null);
+  const [collapsedIds, setCollapsedIds] = useState(() => new Set());
 
   useEffect(() => {
     loadData();
@@ -86,7 +121,14 @@ export default function RestrictionEditor({ projectId }) {
       .select()
       .single();
 
-    if (data) setRestrictions((prev) => insertRuleInList(prev, data, afterRuleId));
+    if (data) {
+      setRestrictions((prev) => insertRuleInList(prev, data, afterRuleId));
+      setCollapsedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(data.id);
+        return next;
+      });
+    }
   }
 
   async function duplicateRule(sourceRule) {
@@ -120,7 +162,29 @@ export default function RestrictionEditor({ projectId }) {
 
     if (data) {
       setRestrictions((prev) => insertRuleInList(prev, data, sourceRule.id));
+      setCollapsedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(data.id);
+        return next;
+      });
     }
+  }
+
+  function toggleCollapsed(id) {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function collapseAll() {
+    setCollapsedIds(new Set(restrictions.map((r) => r.id)));
+  }
+
+  function expandAll() {
+    setCollapsedIds(new Set());
   }
 
   async function updateRule(id, updates) {
@@ -191,14 +255,36 @@ export default function RestrictionEditor({ projectId }) {
         </p>
       )}
 
+      {restrictions.length > 1 && (
+        <div className="flex justify-end gap-3 text-xs">
+          <button
+            type="button"
+            onClick={expandAll}
+            className="text-zinc-500 hover:text-emerald-400 transition-colors"
+          >
+            Expand all
+          </button>
+          <button
+            type="button"
+            onClick={collapseAll}
+            className="text-zinc-500 hover:text-emerald-400 transition-colors"
+          >
+            Collapse all
+          </button>
+        </div>
+      )}
+
       {restrictions.length === 0 ? (
         <p className="text-sm text-zinc-600 text-center py-6">No restrictions defined</p>
       ) : (
-        restrictions.map((rule) => (
+        restrictions.map((rule, index) => (
           <RuleCard
             key={rule.id}
+            index={index + 1}
             rule={rule}
             layers={layers}
+            collapsed={collapsedIds.has(rule.id)}
+            onToggleCollapsed={() => toggleCollapsed(rule.id)}
             onUpdate={(updates) => updateRule(rule.id, updates)}
             onDelete={() => deleteRule(rule.id)}
             onAddRule={() => addRule(rule.id)}
@@ -213,7 +299,17 @@ export default function RestrictionEditor({ projectId }) {
 const ruleCardActionClass =
   "inline-flex items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-900/80 px-3 py-1.5 text-xs text-zinc-300 hover:border-emerald-500/30 hover:text-emerald-400 transition-colors";
 
-function RuleCard({ rule, layers, onUpdate, onDelete, onAddRule, onDuplicate }) {
+function RuleCard({
+  index,
+  rule,
+  layers,
+  collapsed,
+  onToggleCollapsed,
+  onUpdate,
+  onDelete,
+  onAddRule,
+  onDuplicate,
+}) {
   const triggerLayer = layers.find((l) => l.name === rule.trigger_layer);
   const isExcludeLayers = rule.restriction_type === "exclude_layers";
   const isIncludeElements = rule.restriction_type === "include_elements";
@@ -248,7 +344,52 @@ function RuleCard({ rule, layers, onUpdate, onDelete, onAddRule, onDuplicate }) 
   return (
     <div className="bezel-outer">
       <div className="bezel-inner p-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className="flex-1 min-w-0 flex items-center gap-2 text-left rounded-lg hover:bg-zinc-800/40 -m-1 p-1 transition-colors"
+            aria-expanded={!collapsed}
+          >
+            <span className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+              {index}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-white truncate">
+                {RULE_TYPE_LABELS[rule.restriction_type]}
+              </p>
+              <p className="text-xs text-zinc-500 truncate">{ruleSummary(rule)}</p>
+            </div>
+            <CaretDown
+              size={16}
+              className={`shrink-0 text-zinc-500 transition-transform duration-200 ${
+                collapsed ? "" : "rotate-180"
+              }`}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="shrink-0 p-1.5 text-zinc-500 hover:text-red-400 rounded-lg hover:bg-zinc-800/40"
+            aria-label={`Delete rule ${index}`}
+          >
+            <Trash size={18} />
+          </button>
+        </div>
+
+        {collapsed ? (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button type="button" onClick={onToggleCollapsed} className={ruleCardActionClass}>
+              Edit rule
+            </button>
+            <button type="button" onClick={onDuplicate} className={ruleCardActionClass}>
+              <Copy size={14} />
+              Duplicate
+            </button>
+          </div>
+        ) : (
+          <>
+        <div className="flex items-center justify-between gap-2">
           <select
             value={rule.restriction_type}
             onChange={(e) => {
@@ -256,15 +397,12 @@ function RuleCard({ rule, layers, onUpdate, onDelete, onAddRule, onDuplicate }) 
               const payload = cleanPayload(type, rule.payload, selectedTriggers);
               onUpdate({ restriction_type: type, payload });
             }}
-            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white"
+            className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white"
           >
             <option value="exclude_layers">Exclude entire layers</option>
             <option value="exclude_elements">Exclude specific traits</option>
             <option value="include_elements">Include specific traits only</option>
           </select>
-          <button onClick={onDelete} className="text-zinc-500 hover:text-red-400">
-            <Trash size={18} />
-          </button>
         </div>
 
         <div>
@@ -381,6 +519,8 @@ function RuleCard({ rule, layers, onUpdate, onDelete, onAddRule, onDuplicate }) 
             Duplicate rule
           </button>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

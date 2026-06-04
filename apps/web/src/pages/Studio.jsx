@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { supabase } from "../lib/supabase";
 import FolderUpload from "../components/FolderUpload";
@@ -20,12 +20,25 @@ const TABS = [
   { id: "generate", label: "Generate" },
 ];
 
+const TAB_IDS = new Set(TABS.map((t) => t.id));
+
+function tabFromSearchParams(searchParams) {
+  const value = searchParams.get("tab");
+  return value && TAB_IDS.has(value) ? value : "upload";
+}
+
 export default function Studio() {
   const { projectId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState(null);
-  const [tab, setTab] = useState("upload");
+  const tab = tabFromSearchParams(searchParams);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  function setActiveTab(nextTab) {
+    if (!TAB_IDS.has(nextTab)) return;
+    setSearchParams({ tab: nextTab }, { replace: true });
+  }
 
   useEffect(() => {
     loadProject();
@@ -43,7 +56,7 @@ export default function Studio() {
 
   function handleUploadComplete() {
     setRefreshKey((k) => k + 1);
-    setTab("traits");
+    setActiveTab("traits");
   }
 
   if (loading) {
@@ -86,7 +99,7 @@ export default function Studio() {
               MultiversX
             </span>
             <button
-              onClick={() => setTab("settings")}
+              onClick={() => setActiveTab("settings")}
               className="text-sm text-zinc-500 hover:text-white transition-colors"
             >
               Edit settings
@@ -94,20 +107,22 @@ export default function Studio() {
           </div>
         </div>
 
-        <div className="flex gap-1 overflow-x-auto mb-8 pb-1">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 ${
-                tab === t.id
-                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="sticky top-24 z-30 -mx-4 px-4 py-3 mb-6 border-b border-zinc-800/60 bg-[#050505]/85 backdrop-blur-xl">
+          <div className="flex gap-1 overflow-x-auto pb-0.5 max-w-6xl mx-auto">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 ${
+                  tab === t.id
+                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div key={refreshKey}>
