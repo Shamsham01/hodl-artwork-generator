@@ -9,6 +9,14 @@
   NODE_VERSION = "22"
   NPM_FLAGS = "--legacy-peer-deps"
 
+# Old Netlify subdomain → custom domain (301 preserves paths, e.g. /studio)
+[[redirects]]
+  from = "/*"
+  to = "https://hodl-artwork-generator.app/:splat"
+  status = 301
+  force = true
+  conditions = {Host = ["hodl-artwork-generator.netlify.app"]}
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
