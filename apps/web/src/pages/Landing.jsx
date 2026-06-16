@@ -25,12 +25,18 @@ const NFTS = [
   "/nft/nft5.png",
   "/nft/nft6.jpg",
   "/nft/nft7.jpg",
+  "/nft/nft8.png",
+  "/nft/nft9.jpeg",
+  "/nft/nft10.webp",
+  "/nft/nft11.webp",
+  "/nft/nft12.webp",
+  "/nft/nft13.webp",
 ];
 
 const COLUMNS = [
-  { items: [NFTS[0], NFTS[3], NFTS[6], NFTS[1]], anim: "marquee-down" },
-  { items: [NFTS[2], NFTS[5], NFTS[4], NFTS[0]], anim: "marquee-up" },
-  { items: [NFTS[1], NFTS[4], NFTS[6], NFTS[2]], anim: "marquee-down" },
+  { items: [NFTS[0], NFTS[3], NFTS[6], NFTS[12]], anim: "marquee-down" },
+  { items: [NFTS[2], NFTS[8], NFTS[9], NFTS[11]], anim: "marquee-up" },
+  { items: [NFTS[1], NFTS[4], NFTS[7], NFTS[10]], anim: "marquee-down" },
 ];
 
 function NftCard({ src }) {
