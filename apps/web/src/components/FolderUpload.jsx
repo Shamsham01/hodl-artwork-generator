@@ -5,14 +5,15 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
 function parseRelativePath(relativePath) {
-  const parts = relativePath.replace(/\\/g, "/").split("/");
-  const layersIdx = parts.findIndex((p) => p.toLowerCase() === "layers");
-  if (layersIdx === -1) return null;
+  const parts = relativePath.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.length < 2) return null;
 
-  const layerName = parts[layersIdx + 1];
   const filename = parts[parts.length - 1];
-  if (!layerName || !filename.match(/\.(png|jpg|jpeg|gif)$/i)) return null;
+  if (!filename.match(/\.(png|jpg|jpeg|gif)$/i)) return null;
   if (filename.includes("-")) return { error: `Dashes not allowed: ${filename}` };
+
+  const layerName = parts[parts.length - 2];
+  if (!layerName) return null;
 
   return { layerName: layerName.toUpperCase(), filename };
 }
@@ -48,7 +49,9 @@ export default function FolderUpload({ projectId, onComplete }) {
       }
 
       if (!parsed.length) {
-        setErrors(["No valid layer files found. Upload a folder with layers/LAYER_NAME/*.png structure."]);
+        setErrors([
+          "No valid layer files found. Select a folder that contains layer subfolders (e.g. BACKGROUND/, BODY/) with .png files directly inside each one.",
+        ]);
         return;
       }
 
@@ -117,19 +120,39 @@ export default function FolderUpload({ projectId, onComplete }) {
             <p className="text-sm text-zinc-500 mt-1">Traits synced to your project</p>
           </div>
         ) : (
-          <button
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="w-full py-12 border-2 border-dashed border-zinc-700 rounded-xl hover:border-emerald-500/40 transition-colors duration-300 flex flex-col items-center gap-3 disabled:opacity-50"
-          >
-            <UploadSimple size={32} weight="light" className="text-zinc-500" />
-            <span className="text-sm text-zinc-400">
-              {uploading
-                ? `Uploading ${progress.done}/${progress.total}...`
-                : "Drop layers folder or click to browse"}
-            </span>
-            <span className="text-xs text-zinc-600">Expected: layers/BACKGROUND/*.png</span>
-          </button>
+          <div className="space-y-4">
+            <button
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="w-full py-12 border-2 border-dashed border-zinc-700 rounded-xl hover:border-emerald-500/40 transition-colors duration-300 flex flex-col items-center gap-3 disabled:opacity-50"
+            >
+              <UploadSimple size={32} weight="light" className="text-zinc-500" />
+              <span className="text-sm text-zinc-400">
+                {uploading
+                  ? `Uploading ${progress.done}/${progress.total}...`
+                  : "Drop your collection folder or click to browse"}
+              </span>
+            </button>
+            <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 px-4 py-3 text-xs text-zinc-500 space-y-2">
+              <p className="text-zinc-400 font-medium">Folder structure</p>
+              <p>
+                Select the folder that <span className="text-zinc-300">contains your layer folders</span>.
+                The folder name does not matter — only the layer subfolders inside it.
+              </p>
+              <pre className="text-[11px] text-zinc-600 leading-relaxed whitespace-pre-wrap font-sans">
+{`MyCollection/          ← select this folder (any name works)
+  BACKGROUND/
+    Blue#100.png
+  BODY/
+    Skin#50.png`}
+              </pre>
+              <p>
+                A <span className="text-zinc-300">layers/</span> wrapper still works if you already use that
+                layout (e.g. <span className="text-zinc-400">MyCollection/layers/BACKGROUND/*.png</span>).
+                Put trait images directly inside each layer folder — no dashes in filenames.
+              </p>
+            </div>
+          </div>
         )}
 
         {errors.length > 0 && (
