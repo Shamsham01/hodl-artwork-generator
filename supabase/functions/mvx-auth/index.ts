@@ -2,11 +2,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { NativeAuthServer } from "https://esm.sh/@multiversx/sdk-native-auth-server@1.0.18";
 
 // Origins allowed to call this function. Defaults cover local dev and the
-// production Netlify site; extend via the MVX_ALLOWED_ORIGINS secret
+// production site; extend via the MVX_ALLOWED_ORIGINS secret
 // (comma-separated) without needing a code change.
 const DEFAULT_ORIGINS = [
   "http://localhost:5173",
-  "https://hodl-artwork-generator.netlify.app",
+  "https://hodl-artwork-generator.app",
   "http://bot-service-eu-central-04.cybrancee.com:5028",
 ];
 

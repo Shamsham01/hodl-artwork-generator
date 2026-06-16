@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3001;
 
 const DEFAULT_ORIGINS = [
   "http://localhost:5173",
-  "https://hodl-artwork-generator.netlify.app",
+  "https://hodl-artwork-generator.app",
 ];
 
 function acceptedOrigins() {
